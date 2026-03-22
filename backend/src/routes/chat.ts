@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { successResponse, errorResponse } from '@/utils/response';
 import logger from '@/utils/logger';
+import { zhipuLLMService } from '@/services/llm';
 
 const router = Router();
 
@@ -11,7 +12,7 @@ interface ChatRequest {
 }
 
 /**
- * 对话接口 (基础版本,后续集成LangChain)
+ * 对话接口 (已集成智谱AI)
  */
 router.post('/chat', async (req: Request, res: Response) => {
   try {
@@ -28,17 +29,44 @@ router.post('/chat', async (req: Request, res: Response) => {
       sessionId,
     });
 
-    // TODO: 集成LangChain意图识别
-    // TODO: 集成LangGraph工作流
-    // TODO: 集成上下文管理
+    // 调用智谱AI生成回复
+    const systemPrompt = `你是一个外卖骑手智能客服助手,名字叫"小骑"。你的职责是:
+1. 友好、专业地回答骑手的问题
+2. 了解外卖配送、罚单申诉、订单异常、收入查询等相关业务
+3. 用简洁、口语化的方式回复
+4. 如果遇到无法回答的问题,建议联系人工客服
 
-    // 临时返回测试响应
+请用中文回复,保持友好和专业的态度。`;
+
+    let reply: string;
+    try {
+      logger.info('开始调用智谱AI...');
+      reply = await zhipuLLMService.simpleChat(message, systemPrompt);
+      logger.info('智谱AI调用成功,回复长度:', reply.length);
+    } catch (llmError: any) {
+      logger.error('LLM调用失败,返回503错误:', llmError.message);
+      const errorMsg = `抱歉,我现在无法正常回复。${llmError.message}
+
+您可以:
+1. 检查API Key是否配置正确
+2. 稍后再试
+3. 联系人工客服`;
+
+      return errorResponse(res, errorMsg, 503, 503);
+    }
+
     const response = {
       riderId,
-      reply: `收到你的消息: ${message}`,
-      intent: 'general',
+      reply,
+      intent: 'general', // 暂时固定为general,后续添加意图识别
       timestamp: new Date().toISOString(),
+      model: 'zhipu-glm',
     };
+
+    logger.info('对话接口返回成功', {
+      replyLength: reply.length,
+      model: response.model,
+    });
 
     successResponse(res, response, 'success');
   } catch (error: any) {

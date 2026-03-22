@@ -1,6 +1,17 @@
+// 必须在最前面加载环境变量
+import 'dotenv/config';
+
+// 然后再导入其他模块
 import App from './index';
 import logger from '@/utils/logger';
 import { closeConnections } from '@/utils/db';
+
+// 验证环境变量加载
+if (!process.env.ZHIPU_API_KEY) {
+  console.warn('⚠️  警告: ZHIPU_API_KEY 未配置,智谱AI功能将不可用');
+} else {
+  console.log('✅ 智谱AI API Key 已加载');
+}
 
 const app = new App();
 const server = app.listen();

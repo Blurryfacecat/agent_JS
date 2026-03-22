@@ -29,6 +29,14 @@ export default {
     temperature: 0.1,
   },
 
+  // 智谱AI配置
+  zhipu: {
+    apiKey: process.env.ZHIPU_API_KEY || '',
+    model: process.env.ZHIPU_MODEL || 'glm-4-flash',
+    temperature: parseFloat(process.env.ZHIPU_TEMPERATURE || '0.7'),
+    apiUrl: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
+  },
+
   // 日志配置
   log: {
     level: process.env.LOG_LEVEL || 'info',

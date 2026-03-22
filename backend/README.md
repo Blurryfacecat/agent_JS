@@ -8,6 +8,7 @@
 - **框架**: Express 4.x
 - **语言**: TypeScript 5.x
 - **AI框架**: LangChain.js, LangGraph
+- **LLM服务**: 智谱AI GLM-4 ✅
 - **数据库**: MySQL 8.0, Redis
 - **日志**: Winston
 
@@ -177,23 +178,52 @@ GET /api/v1/session/:riderId
 
 ## 开发计划
 
+## 开发进度
+
 - [x] 项目初始化和基础配置
 - [x] Express服务器搭建
 - [x] 日志系统实现
 - [x] 健康检查接口
 - [x] 对话接口基础版本
-- ] LangChain意图识别
-- ] LangGraph工作流
-- ] 上下文管理
-- ] RAG知识库
-- ] 完整业务逻辑
+- [x] 智谱AI LLM集成 ✅
+- [ ] LangChain意图识别
+- [ ] LangGraph工作流
+- [ ] 上下文管理
+- [ ] RAG知识库
+- [ ] 完整业务逻辑
+
+## 🎯 智谱AI集成
+
+### 快速测试
+
+1. 配置 `.env` 文件中的 `ZHIPU_API_KEY`
+2. 启动服务: `npm run dev`
+3. 运行测试: `node test-chat.js`
+
+详细文档: [docs/QUICK_START.md](./docs/QUICK_START.md)
+
+### API示例
+
+```bash
+curl -X POST http://localhost:3000/api/v1/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "riderId": "test001",
+    "message": "你好,请问超时罚款怎么申诉?"
+  }'
+```
 
 ## 注意事项
 
 1. **数据库**: 首次运行前需要创建MySQL数据库 `rider_cs`
 2. **Redis**: 确保Redis服务已启动
-3. **OpenAI**: 需要配置有效的API密钥才能使用AI功能
+3. **智谱AI**: 需要配置有效的API密钥才能使用AI功能
 4. **日志**: 生产环境日志文件会按天自动切割
+
+## 📚 相关文档
+
+- [智谱AI快速开始](./docs/QUICK_START.md)
+- [智谱AI集成说明](./docs/ZHIPU_INTEGRATION.md)
 
 ## 许可证
 
