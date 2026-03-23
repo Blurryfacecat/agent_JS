@@ -189,3 +189,103 @@ export const getSessionMessages = (sessionId: string, limit = 50): any[] => {
   `);
   return stmt.all(sessionId, limit);
 };
+
+// ============ 反馈存储相关函数 ============
+
+export interface SaveFeedbackParams {
+  messageId: number;
+  rating: number;
+  comment?: string | null;
+}
+
+export interface FeedbackListParams {
+  page: number;
+  limit: number;
+  minRating?: number;
+  maxRating?: number;
+}
+
+/**
+ * 保存用户反馈
+ */
+export const saveFeedback = (params: SaveFeedbackParams): number => {
+  const database = getSQLiteDB();
+
+  const stmt = database.prepare(`
+    INSERT INTO feedback (message_id, rating, comment)
+    VALUES (?, ?, ?)
+  `);
+
+  const result = stmt.run(params.messageId, params.rating, params.comment ?? null);
+  return result.lastInsertRowid as number;
+};
+
+/**
+ * 根据消息ID获取反馈
+ */
+export const getFeedbackByMessageId = (messageId: number): any | null => {
+  const database = getSQLiteDB();
+
+  const stmt = database.prepare(`
+    SELECT id, message_id, rating, comment, created_at
+    FROM feedback
+    WHERE message_id = ?
+    ORDER BY created_at DESC
+    LIMIT 1
+  `);
+
+  return stmt.get(messageId) || null;
+};
+
+/**
+ * 获取反馈列表（支持分页和评分筛选）
+ */
+export const getFeedbackList = (params: FeedbackListParams): any => {
+  const database = getSQLiteDB();
+  const { page, limit, minRating, maxRating } = params;
+  const offset = (page - 1) * limit;
+
+  // 构建查询条件
+  let whereClause = '';
+  const queryParams: number[] = [];
+
+  if (minRating !== undefined && maxRating !== undefined) {
+    whereClause = 'WHERE rating BETWEEN ? AND ?';
+    queryParams.push(minRating, maxRating);
+  } else if (minRating !== undefined) {
+    whereClause = 'WHERE rating >= ?';
+    queryParams.push(minRating);
+  } else if (maxRating !== undefined) {
+    whereClause = 'WHERE rating <= ?';
+    queryParams.push(maxRating);
+  }
+
+  // 查询总数
+  const countStmt = database.prepare(`
+    SELECT COUNT(*) as total
+    FROM feedback
+    ${whereClause}
+  `);
+  const countResult = countStmt.get(...queryParams) as { total: number };
+
+  // 查询反馈列表
+  const listStmt = database.prepare(`
+    SELECT f.id, f.message_id, f.rating, f.comment, f.created_at,
+           m.session_id, m.role, m.content as message_content
+    FROM feedback f
+    LEFT JOIN messages m ON f.message_id = m.id
+    ${whereClause}
+    ORDER BY f.created_at DESC
+    LIMIT ? OFFSET ?
+  `);
+
+  const list = listStmt.all(...queryParams, limit, offset);
+
+  return {
+    list,
+    total: countResult.total,
+    page,
+    limit,
+    totalPages: Math.ceil(countResult.total / limit),
+  };
+};

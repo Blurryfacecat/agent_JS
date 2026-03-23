@@ -3,7 +3,7 @@
     "allow": [
       "Bash(npm install:*)",
       "Bash(npm run:*)",
-      "Bash(curl -s http://localhost:3000/health)"
+      "Bash(curl -s http://localhost:3001/health)"
     ]
   }
 }

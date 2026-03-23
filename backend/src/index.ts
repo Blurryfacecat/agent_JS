@@ -8,6 +8,7 @@ import { errorHandler, notFoundHandler } from "@/middleware/errorHandler";
 import healthRouter from "@/routes/health";
 import chatRouter from "@/routes/chat";
 import knowledgeRouter from "@/routes/knowledge";
+import feedbackRouter from "@/routes/feedback";
 import { getSQLiteDB, getRedisClient } from "@/utils/db";
 
 class App {
@@ -53,6 +54,7 @@ class App {
     // API路由
     this.app.use(config.apiPrefix, chatRouter);
     this.app.use(`${config.apiPrefix}/knowledge`, knowledgeRouter);
+    this.app.use(`${config.apiPrefix}/feedback`, feedbackRouter);
   }
 
   private initializeErrorHandling(): void {
