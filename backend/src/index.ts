@@ -6,6 +6,7 @@ import logger from '@/utils/logger';
 import { errorHandler, notFoundHandler } from '@/middleware/errorHandler';
 import healthRouter from '@/routes/health';
 import chatRouter from '@/routes/chat';
+import knowledgeRouter from '@/routes/knowledge';
 import { getMySQLPool, getRedisClient } from '@/utils/db';
 
 class App {
@@ -48,6 +49,7 @@ class App {
 
     // API路由
     this.app.use(config.apiPrefix, chatRouter);
+    this.app.use(`${config.apiPrefix}/knowledge`, knowledgeRouter);
   }
 
   private initializeErrorHandling(): void {

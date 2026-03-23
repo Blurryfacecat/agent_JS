@@ -33,6 +33,7 @@
 | [智谱AI集成实现文档](./智谱AI集成实现文档.md) ⭐ | 详细技术实现方案 | 开发者 |
 | [智谱AI集成说明](../backend/docs/ZHIPU_INTEGRATION.md) | 集成步骤和API说明 | 开发者 |
 | [成功总结](../backend/docs/SUCCESS_SUMMARY.md) | 功能清单和测试结果 | 所有人 |
+| [ChromaDB使用指南](./ChromaDB使用指南.md) ⭐ | 向量数据库使用教程 | 开发者 |
 
 ### 使用指南
 

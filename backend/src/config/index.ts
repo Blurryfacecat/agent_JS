@@ -47,4 +47,10 @@ export default {
   session: {
     expire: parseInt(process.env.SESSION_EXPIRE || '1800', 10), // 30分钟
   },
+
+  // ChromaDB配置
+  chroma: {
+    url: process.env.CHROMA_URL || 'http://localhost:8000',
+    collectionName: process.env.CHROMA_COLLECTION || 'rider_knowledge_base',
+  },
 };
