@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { successResponse, errorResponse } from '@/utils/response';
 import logger from '@/utils/logger';
 import { zhipuLLMService } from '@/services/llm';
+import { saveMessage, getSessionMessages } from '@/utils/db';
 
 const router = Router();
 
@@ -23,11 +24,26 @@ router.post('/chat', async (req: Request, res: Response) => {
       return errorResponse(res, '缺少必要参数: riderId或message', 400, 400);
     }
 
+    // 生成或使用现有 sessionId
+    const currentSessionId = sessionId || `session_${Date.now()}_${riderId}`;
+
     logger.info(`收到对话请求`, {
       riderId,
       message,
-      sessionId,
+      sessionId: currentSessionId,
     });
+
+    // 保存用户消息
+    try {
+      saveMessage({
+        sessionId: currentSessionId,
+        userId: riderId,
+        role: 'user',
+        content: message,
+      });
+    } catch (dbError) {
+      logger.error('保存用户消息失败:', dbError);
+    }
 
     // 调用智谱AI生成回复
     const systemPrompt = `你是一个外卖骑手智能客服助手,名字叫"小骑"。你的职责是:
@@ -55,8 +71,21 @@ router.post('/chat', async (req: Request, res: Response) => {
       return errorResponse(res, errorMsg, 503, 503);
     }
 
+    // 保存助手回复
+    try {
+      saveMessage({
+        sessionId: currentSessionId,
+        userId: riderId,
+        role: 'assistant',
+        content: reply,
+      });
+    } catch (dbError) {
+      logger.error('保存助手回复失败:', dbError);
+    }
+
     const response = {
       riderId,
+      sessionId: currentSessionId,
       reply,
       intent: 'general', // 暂时固定为general,后续添加意图识别
       timestamp: new Date().toISOString(),
@@ -78,19 +107,18 @@ router.post('/chat', async (req: Request, res: Response) => {
 /**
  * 获取会话历史接口
  */
-router.get('/session/:riderId', async (req: Request, res: Response) => {
+router.get('/session/:sessionId', async (req: Request, res: Response) => {
   try {
-    const { riderId } = req.params;
+    const { sessionId } = req.params;
 
-    logger.info(`查询会话历史`, { riderId });
+    logger.info(`查询会话历史`, { sessionId });
 
-    // TODO: 从Redis获取会话历史
+    const messages = getSessionMessages(sessionId);
 
     const sessionData = {
-      riderId,
-      messages: [],
-      sessionId: `temp-${riderId}`,
-      createdAt: new Date().toISOString(),
+      sessionId,
+      messages,
+      messageCount: messages.length,
     };
 
     successResponse(res, sessionData);

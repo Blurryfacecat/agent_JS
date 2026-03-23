@@ -8,7 +8,7 @@ import { errorHandler, notFoundHandler } from "@/middleware/errorHandler";
 import healthRouter from "@/routes/health";
 import chatRouter from "@/routes/chat";
 import knowledgeRouter from "@/routes/knowledge";
-import { getMySQLPool, getRedisClient } from "@/utils/db";
+import { getSQLiteDB, getRedisClient } from "@/utils/db";
 
 class App {
   public app: Application;
@@ -80,12 +80,12 @@ class App {
 
   private async testDatabaseConnections(): Promise<void> {
     try {
-      // 测试MySQL连接
-      const pool = getMySQLPool();
-      await pool.getConnection();
-      logger.info("✅ MySQL 连接测试成功");
+      // 测试SQLite连接
+      const db = getSQLiteDB();
+      db.prepare("SELECT 1").get();
+      logger.info("✅ SQLite 连接测试成功");
     } catch (error) {
-      logger.warn("⚠️  MySQL 连接测试失败,请检查数据库配置");
+      logger.warn("⚠️  SQLite 连接测试失败,请检查数据库配置");
     }
 
     try {
