@@ -140,7 +140,7 @@ router.delete('/documents', async (req: Request, res: Response) => {
 /**
  * 获取知识库统计信息
  */
-router.get('/stats', async (req: Request, res: Response) => {
+router.get('/stats', async (_req: Request, res: Response) => {
   try {
     const count = await chromaService.count();
 
@@ -157,7 +157,7 @@ router.get('/stats', async (req: Request, res: Response) => {
 /**
  * 清空知识库
  */
-router.delete('/clear', async (req: Request, res: Response) => {
+router.delete('/clear', async (_req: Request, res: Response) => {
   try {
     logger.info('清空知识库');
 

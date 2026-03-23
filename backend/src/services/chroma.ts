@@ -14,6 +14,8 @@ export interface DocumentMetadata {
   source?: string;
   created_at?: string;
   updated_at?: string;
+  document_id?: string;
+  chunk_index?: number;
 }
 
 /**
@@ -170,7 +172,7 @@ export class ChromaService {
 
           searchResults.push({
             id: results.ids[0][i],
-            text: results.documents[0][i],
+            text: results.documents[0][i] || '',
             metadata: results.metadatas[0][i] as DocumentMetadata,
             score,
           });

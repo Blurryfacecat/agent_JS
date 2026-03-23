@@ -4,7 +4,7 @@
   "description": "外卖骑手智能客服系统后端服务",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "lint": "eslint src --ext .ts",
@@ -16,6 +16,7 @@
     "customer-service",
     "ai"
   ],
+  "type": "module",
   "author": "",
   "license": "MIT",
   "dependencies": {
