@@ -66,6 +66,47 @@ const initializeTables = (database: Database.Database): void => {
     );
   `);
 
+  // 文档表 (RAG)
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS documents (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      doc_id VARCHAR(64) UNIQUE NOT NULL,
+      title VARCHAR(255) NOT NULL,
+      category VARCHAR(100),
+      file_name VARCHAR(255) NOT NULL,
+      file_type VARCHAR(50) NOT NULL,
+      file_size INTEGER,
+      minio_path VARCHAR(500),
+      chunk_count INTEGER DEFAULT 0,
+      status VARCHAR(20) DEFAULT 'pending',
+      error_message TEXT,
+      uploaded_by VARCHAR(100),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_documents_status ON documents(status);
+    CREATE INDEX IF NOT EXISTS idx_documents_category ON documents(category);
+    CREATE INDEX IF NOT EXISTS idx_documents_doc_id ON documents(doc_id);
+  `);
+
+  // 文档分块表 (RAG)
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS document_chunks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      chunk_id VARCHAR(64) UNIQUE NOT NULL,
+      doc_id VARCHAR(64) NOT NULL,
+      chunk_index INTEGER NOT NULL,
+      content TEXT NOT NULL,
+      metadata TEXT,
+      chroma_id VARCHAR(100),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (doc_id) REFERENCES documents(doc_id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_chunks_doc_id ON document_chunks(doc_id);
+    CREATE INDEX IF NOT EXISTS idx_chunks_chroma_id ON document_chunks(chroma_id);
+    CREATE INDEX IF NOT EXISTS idx_chunks_chunk_id ON document_chunks(chunk_id);
+  `);
+
   isInitialized = true;
   logger.info('数据库表初始化完成');
 };
