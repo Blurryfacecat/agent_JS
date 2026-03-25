@@ -9,7 +9,6 @@ import healthRouter from "@/routes/health";
 import chatRouter from "@/routes/chat";
 import knowledgeRouter from "@/routes/knowledge";
 import feedbackRouter from "@/routes/feedback";
-import { getSQLiteDB, getRedisClient } from "@/utils/db";
 
 class App {
   public app: Application;
@@ -72,32 +71,7 @@ class App {
       logger.info(`🌐 端口: ${config.port}`);
       logger.info(`📍 API前缀: ${config.apiPrefix}`);
 
-      // 测试数据库连接
-      //todo
-      // if (config.nodeEnv !== "test") {
-      //   this.testDatabaseConnections();
-      // }
     });
-  }
-
-  private async testDatabaseConnections(): Promise<void> {
-    try {
-      // 测试SQLite连接
-      const db = getSQLiteDB();
-      db.prepare("SELECT 1").get();
-      logger.info("✅ SQLite 连接测试成功");
-    } catch (error) {
-      logger.warn("⚠️  SQLite 连接测试失败,请检查数据库配置");
-    }
-
-    try {
-      // 测试Redis连接
-      const redis = getRedisClient();
-      await redis.ping();
-      logger.info("✅ Redis 连接测试成功");
-    } catch (error) {
-      logger.warn("⚠️  Redis 连接测试失败,请检查Redis配置");
-    }
   }
 }
 
