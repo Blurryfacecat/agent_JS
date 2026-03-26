@@ -1,6 +1,6 @@
-import axios, { AxiosInstance } from 'axios';
-import config from '@/config';
-import logger from '@/utils/logger';
+import axios, { AxiosInstance } from "axios";
+import config from "@/config";
+import logger from "@/utils/logger";
 
 /**
  * 智谱AI嵌入函数
@@ -13,22 +13,22 @@ export class ZhipuEmbeddingFunction {
 
   constructor(apiKey?: string) {
     this.apiKey = apiKey || config.zhipu.apiKey;
-    this.model = 'embedding-2'; // 智谱AI嵌入模型
+    this.model = "embedding-3"; // 智谱AI嵌入模型 (2048维)
 
     if (!this.apiKey) {
-      throw new Error('智谱AI API Key未配置');
+      throw new Error("智谱AI API Key未配置");
     }
 
     this.client = axios.create({
-      baseURL: 'https://open.bigmodel.cn/api/paas/v4',
+      baseURL: "https://open.bigmodel.cn/api/paas/v4",
       timeout: 30000,
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`,
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.apiKey}`,
       },
     });
 
-    logger.info('智谱AI嵌入函数初始化完成');
+    logger.info("智谱AI嵌入函数初始化完成");
   }
 
   /**
@@ -42,7 +42,7 @@ export class ZhipuEmbeddingFunction {
 
       // 智谱AI的embedding API每次只支持一个文本
       for (const text of texts) {
-        const response = await this.client.post('/embeddings', {
+        const response = await this.client.post("/embeddings", {
           model: this.model,
           input: text,
         });
@@ -51,7 +51,7 @@ export class ZhipuEmbeddingFunction {
           const embedding = response.data.data[0].embedding;
           embeddings.push(embedding);
         } else {
-          throw new Error('智谱AI未返回嵌入向量');
+          throw new Error("智谱AI未返回嵌入向量");
         }
       }
 
@@ -59,7 +59,7 @@ export class ZhipuEmbeddingFunction {
 
       return embeddings;
     } catch (error: any) {
-      logger.error('智谱AI嵌入向量生成失败:', {
+      logger.error("智谱AI嵌入向量生成失败:", {
         message: error.message,
         response: error.response?.data,
       });
@@ -105,7 +105,7 @@ export class TextChunker {
       start += this.maxChunkSize - this.overlap;
     }
 
-    return chunks.filter(chunk => chunk.length > 0);
+    return chunks.filter((chunk) => chunk.length > 0);
   }
 
   /**
@@ -114,7 +114,7 @@ export class TextChunker {
   chunkByParagraph(text: string): string[] {
     const paragraphs = text.split(/\n\n+/);
     const chunks: string[] = [];
-    let currentChunk = '';
+    let currentChunk = "";
 
     for (const paragraph of paragraphs) {
       if (currentChunk.length + paragraph.length > this.maxChunkSize) {
@@ -123,7 +123,7 @@ export class TextChunker {
         }
         currentChunk = paragraph;
       } else {
-        currentChunk += (currentChunk ? '\n\n' : '') + paragraph;
+        currentChunk += (currentChunk ? "\n\n" : "") + paragraph;
       }
     }
 
@@ -140,10 +140,10 @@ export class TextChunker {
   chunkBySentence(text: string): string[] {
     const sentences = text.split(/([。！？.!?])/);
     const chunks: string[] = [];
-    let currentChunk = '';
+    let currentChunk = "";
 
     for (let i = 0; i < sentences.length; i += 2) {
-      const sentence = sentences[i] + (sentences[i + 1] || '');
+      const sentence = sentences[i] + (sentences[i + 1] || "");
 
       if (currentChunk.length + sentence.length > this.maxChunkSize) {
         if (currentChunk) {

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { RightOutlined, ExportOutlined } from '@ant-design/icons';
 import './Dashboard.css';
 
 export default function Dashboard() {
@@ -87,9 +88,7 @@ export default function Dashboard() {
                 <p className="action-description">{action.description}</p>
               </div>
               <div className="action-arrow">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="9 18 15 12 9 6"/>
-                </svg>
+                <RightOutlined />
               </div>
             </Link>
           ))}
@@ -129,19 +128,11 @@ export default function Dashboard() {
             <div className="info-card-body">
               <a href="/chat" target="_blank" className="link-item">
                 <span>客服页面</span>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                  <polyline points="15 3 21 3 21 9"/>
-                  <line x1="10" y1="14" x2="21" y2="3"/>
-                </svg>
+                <ExportOutlined />
               </a>
               <a href="https://open.bigmodel.cn/" target="_blank" rel="noopener noreferrer" className="link-item">
                 <span>智谱AI控制台</span>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                  <polyline points="15 3 21 3 21 9"/>
-                  <line x1="10" y1="14" x2="21" y2="3"/>
-                </svg>
+                <ExportOutlined />
               </a>
             </div>
           </div>

@@ -160,8 +160,8 @@ const vectorizeAndStoreChunks = async (
     // 初始化 ChromaDB 集合
     await chromaService.init(ragConfig.chroma.collectionName);
 
-    // 构建文档数据
-    const documents = chunks.map((chunk) => ({
+    // 构建预分块文档数据
+    const preChunkedItems = chunks.map((chunk) => ({
       id: chunk.chunkId,
       text: chunk.content,
       metadata: {
@@ -170,11 +170,13 @@ const vectorizeAndStoreChunks = async (
         title,
         category,
         chunk_size: chunk.metadata.chunkSize,
+        start_position: chunk.metadata.startPosition,
+        end_position: chunk.metadata.endPosition,
       },
     }));
 
-    // 添加到 ChromaDB
-    await chromaService.addDocuments(documents);
+    // 使用新方法添加预分块文档
+    await chromaService.addPreChunkedDocuments(preChunkedItems);
 
     // 更新分块的 chroma_id
     const db = getSQLiteDB();
@@ -433,7 +435,7 @@ export const searchDocuments = async (
 
   // 获取文档详情
   const db = getSQLiteDB();
-  const docIds = [...new Set(results.map((r) => r.metadata?.document_id).filter(Boolean))];
+  const docIds = [...new Set(results.map((r) => r.metadata?.doc_id).filter(Boolean))];
 
   const docsMap = new Map();
   if (docIds.length > 0) {
@@ -450,7 +452,7 @@ export const searchDocuments = async (
     chunkId: result.id,
     content: result.text,
     score: result.score,
-    document: docsMap.get(result.metadata?.document_id),
+    document: docsMap.get(result.metadata?.doc_id),
     chunkIndex: result.metadata?.chunk_index,
   }));
 };

@@ -15,7 +15,11 @@
       "Bash(lsof -ti:3000 | xargs kill -9 2>/dev/null || true)",
       "Bash(sleep 2 && curl -s \"http://localhost:3001/api/v1/suggestions?limit=1\")",
       "Bash(curl -s \"http://localhost:3001/api/v1/suggestions?limit=1\")",
-      "Bash(curl -X POST http://localhost:3001/api/v1/documents/upload \\\\\n  -F \"file=@test_document.txt\" \\\\\n  -F \"title=外卖骑手知识库测试\" \\\\\n  -F \"category=training\" \\\\\n  -F \"uploadedBy=admin\")"
+      "Bash(curl -X POST http://localhost:3001/api/v1/documents/upload \\\\\n  -F \"file=@test_document.txt\" \\\\\n  -F \"title=外卖骑手知识库测试\" \\\\\n  -F \"category=training\" \\\\\n  -F \"uploadedBy=admin\")",
+      "Bash(echo \"=== 检查 MinIO 容器环境变量 ===\"\ndocker inspect minio --format='{{range .Config.Env}}{{println .}}{{end}}' | grep -i minio)",
+      "Bash(ls -la /Users/lizhixian.19/Desktop/learning/agent_JS/backend/.env* 2>&1 || echo \"文件不存在\")",
+      "Bash(DOC_ID=\"doc_0b314eaa-3784-4b55-bd68-ca04ef5b0715\" echo \"=== 等待文档处理完成 ===\" sleep 8 __NEW_LINE_8151a88075f4ebcb__ echo \"=== 检查文档状态 ===\" curl -s \"http://localhost:3001/api/documents/$DOC_ID/status\")",
+      "Bash(jq '.data | {doc_id, title, status, chunk_count, error_message}' __NEW_LINE_8151a88075f4ebcb__ echo -e \"\\\\n=== 检查 ChromaDB 统计 ===\" curl -s \"http://localhost:3001/api/knowledge/stats\")"
     ]
   }
 }

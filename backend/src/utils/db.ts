@@ -1,4 +1,5 @@
-import Database from 'better-sqlite3';
+import sqlitePackage from 'better-sqlite3';
+const Database = sqlitePackage.default || sqlitePackage;
 import Redis from 'ioredis';
 import path from 'path';
 import fs from 'fs';

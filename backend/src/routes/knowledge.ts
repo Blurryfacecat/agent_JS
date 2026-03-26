@@ -2,7 +2,6 @@ import { Router, Request, Response } from 'express';
 import { successResponse, errorResponse } from '@/utils/response';
 import logger from '@/utils/logger';
 import { chromaService, Document } from '@/services/chroma';
-import Database from 'better-sqlite3';
 import { getSQLiteDB } from '@/utils/db';
 
 const router = Router();

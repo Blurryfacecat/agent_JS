@@ -86,6 +86,52 @@ export class ChromaService {
   }
 
   /**
+   * 添加预分块的文档（不再次分块）
+   */
+  async addPreChunkedDocuments(
+    items: Array<{ id: string; text: string; metadata?: DocumentMetadata }>
+  ): Promise<void> {
+    if (!this.collection) {
+      throw new Error('集合未初始化,请先调用init()');
+    }
+
+    try {
+      logger.info(`开始添加预分块文档,数量: ${items.length}`);
+
+      const ids: string[] = [];
+      const texts: string[] = [];
+      const metadatas: DocumentMetadata[] = [];
+
+      for (const item of items) {
+        ids.push(item.id);
+        texts.push(item.text);
+        metadatas.push(item.metadata || {});
+      }
+
+      if (ids.length === 0) {
+        throw new Error('没有有效的文档分块');
+      }
+
+      // 生成嵌入向量
+      logger.info(`开始生成嵌入向量,文本数量: ${texts.length}`);
+      const embeddings = await this.embedder.generate(texts);
+
+      // 添加到集合
+      await this.collection.add({
+        ids,
+        embeddings,
+        documents: texts,
+        metadatas: metadatas as any,
+      });
+
+      logger.info(`预分块文档添加成功,总块数: ${ids.length}`);
+    } catch (error: any) {
+      logger.error('添加预分块文档失败:', error);
+      throw error;
+    }
+  }
+
+  /**
    * 添加文档
    */
   async addDocuments(documents: Document[]): Promise<void> {

@@ -5,6 +5,9 @@ import Dashboard from './pages/admin/Dashboard';
 import KnowledgeList from './pages/admin/KnowledgeList';
 import KnowledgeForm from './pages/admin/KnowledgeForm';
 import KnowledgeDetail from './pages/admin/KnowledgeDetail';
+import DocumentDetail from './pages/admin/DocumentDetail';
+import SuggestionsList from './pages/admin/SuggestionsList';
+import SuggestionsForm from './pages/admin/SuggestionsForm';
 
 function App() {
   return (
@@ -23,6 +26,12 @@ function App() {
         <Route path="knowledge/new" element={<KnowledgeForm />} />
         <Route path="knowledge/edit/:id" element={<KnowledgeForm />} />
         <Route path="knowledge/detail/:id" element={<KnowledgeDetail />} />
+        <Route path="knowledge/document/:docId" element={<DocumentDetail />} />
+
+        {/* 推荐问题管理 */}
+        <Route path="suggestions" element={<SuggestionsList />} />
+        <Route path="suggestions/new" element={<SuggestionsForm />} />
+        <Route path="suggestions/edit/:id" element={<SuggestionsForm />} />
 
         {/* 其他管理模块（待实现） */}
         <Route path="documents" element={<Dashboard />} />

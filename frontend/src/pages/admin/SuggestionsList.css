@@ -1,0 +1,526 @@
+/* ==================== Suggestions List Page ==================== */
+
+.suggestions-list-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px;
+}
+
+/* 推荐问题卡片 */
+.suggestions-list {
+  padding: 20px;
+}
+
+.suggestion-card {
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+  transition: all 0.2s;
+  background: white;
+}
+
+.suggestion-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-color: #667eea;
+}
+
+.suggestion-card.inactive {
+  opacity: 0.6;
+  background: #f9f9f9;
+}
+
+.suggestion-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.suggestion-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+.suggestion-icon {
+  font-size: 28px;
+  flex-shrink: 0;
+}
+
+.suggestion-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+  margin: 0;
+}
+
+.category-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.sort-order {
+  padding: 4px 8px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #666;
+  flex-shrink: 0;
+}
+
+.click-count {
+  padding: 4px 8px;
+  background: #e8f5e9;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #2e7d32;
+  flex-shrink: 0;
+}
+
+.suggestion-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.toggle-btn {
+  padding: 4px 8px !important;
+  font-size: 14px !important;
+}
+
+.toggle-btn.disabled {
+  background: #ffebee !important;
+  color: #f44336 !important;
+  border-color: #f44336 !important;
+}
+
+.suggestion-content {
+  margin-left: 40px;
+  color: #666;
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+
+.suggestion-content p {
+  margin: 0;
+}
+
+.suggestion-footer {
+  margin-left: 40px;
+  font-size: 12px;
+  color: #999;
+  display: flex;
+  gap: 16px;
+}
+
+.suggestion-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 复用 KnowledgeList 的样式 */
+.suggestions-list-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px;
+}
+
+/* ==================== Suggestions Form Page ==================== */
+
+.form-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 32px;
+}
+
+.form-header {
+  margin-bottom: 24px;
+}
+
+.form-header h1 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1a1f36;
+  margin: 0;
+}
+
+.suggestion-form {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 24px;
+}
+
+.form-row {
+  display: flex;
+  gap: 16px;
+}
+
+.form-row .form-group {
+  flex: 1;
+}
+
+.icon-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin-top: 16px;
+  margin-bottom: 16px;
+}
+
+.preview-label {
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+}
+
+.preview-icon {
+  font-size: 24px;
+}
+
+.preview-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+}
+
+/* 复用 KnowledgeForm 的样式 */
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.form-label.required::after {
+  content: ' *';
+  color: #f44336;
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
+}
+
+.char-count {
+  display: block;
+  text-align: right;
+  font-size: 12px;
+  color: #999;
+  margin-top: 4px;
+}
+
+.form-error {
+  background: #ffebee;
+  color: #f44336;
+  padding: 10px 12px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.primary-btn,
+.secondary-btn {
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.primary-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.primary-btn:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.secondary-btn {
+  background: white;
+  border: 1px solid #e0e0e0;
+  color: #666;
+}
+
+.secondary-btn:hover:not(:disabled) {
+  background: #f5f5f5;
+  border-color: #667eea;
+  color: #667eea;
+}
+
+.primary-btn:disabled,
+.secondary-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.form-tips {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.form-tips p {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.form-tips ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.form-tips li {
+  font-size: 13px;
+  color: #666;
+  margin: 4px 0;
+}
+
+/* 复用通用样式 */
+.kb-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.kb-header h1 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1a1f36;
+  margin: 0;
+}
+
+.stats-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.stat-icon {
+  font-size: 24px;
+}
+
+.stat-info {
+  flex: 1;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 600;
+  color: #333;
+  line-height: 1;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: #999;
+  margin-top: 2px;
+}
+
+.filter-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  align-items: center;
+}
+
+.category-filter {
+  padding: 10px 16px;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  min-width: 120px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #666;
+  cursor: pointer;
+  user-select: none;
+}
+
+.entries-container {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  min-height: 400px;
+}
+
+.loading-state,
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #f0f0f0;
+  border-top-color: #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-state p {
+  margin-top: 12px;
+  color: #999;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.empty-state h3 {
+  font-size: 16px;
+  color: #333;
+  margin: 0 0 8px 0;
+}
+
+.empty-state p {
+  font-size: 14px;
+  color: #999;
+  margin: 0;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border-top: 1px solid #e8e8e8;
+}
+
+.page-btn {
+  padding: 8px 16px;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.page-btn:hover:not(:disabled) {
+  background: #f5f5f5;
+  border-color: #667eea;
+  color: #667eea;
+}
+
+.page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.page-info {
+  font-size: 14px;
+  color: #666;
+}
+
+.action-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.action-btn:hover {
+  background: #f5f5f5;
+}
+
+.edit-btn:hover {
+  color: #667eea;
+  border-color: #667eea;
+}
+
+.delete-btn:hover {
+  color: #f44336;
+  border-color: #f44336;
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

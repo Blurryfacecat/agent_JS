@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { Select, Input, Button } from 'antd';
 import { getKnowledgeEntry, createKnowledgeEntry, updateKnowledgeEntry, getKnowledgeCategories } from '../../services/api';
 import './KnowledgeForm.css';
+
+const { TextArea } = Input;
 
 export default function KnowledgeForm() {
   const navigate = useNavigate();
@@ -132,13 +135,11 @@ export default function KnowledgeForm() {
         {/* 标题 */}
         <div className="form-group">
           <label className="form-label required">标题</label>
-          <input
-            type="text"
+          <Input
             name="title"
-            className="form-input"
             placeholder="请输入知识库标题（必填）"
             value={formData.title}
-            onChange={handleChange}
+            onChange={(e) => handleChange({ target: { name: 'title', value: e.target.value } })}
             maxLength={100}
           />
           <span className="char-count">{formData.title.length}/100</span>
@@ -147,30 +148,29 @@ export default function KnowledgeForm() {
         {/* 分类 */}
         <div className="form-group">
           <label className="form-label">分类</label>
-          <select
-            name="category"
-            className="form-select"
-            value={formData.category}
-            onChange={handleChange}
-          >
-            <option value="">未分类</option>
-            <option value="faq">常见问题</option>
-            <option value="policy">政策规定</option>
-            <option value="training">培训资料</option>
-            <option value="other">其他</option>
-          </select>
+          <Select
+            value={formData.category || undefined}
+            onChange={(value) => handleChange({ target: { name: 'category', value } })}
+            style={{ width: '100%' }}
+            placeholder="未分类"
+            allowClear
+            options={[
+              { value: 'faq', label: '常见问题' },
+              { value: 'policy', label: '政策规定' },
+              { value: 'training', label: '培训资料' },
+              { value: 'other', label: '其他' },
+            ]}
+          />
         </div>
 
         {/* 来源 */}
         <div className="form-group">
           <label className="form-label">来源</label>
-          <input
-            type="text"
+          <Input
             name="source"
-            className="form-input"
             placeholder="请输入来源（如：运营手册、培训文档等）"
             value={formData.source}
-            onChange={handleChange}
+            onChange={(e) => handleChange({ target: { name: 'source', value: e.target.value } })}
             maxLength={100}
           />
         </div>
@@ -178,13 +178,12 @@ export default function KnowledgeForm() {
         {/* 内容 */}
         <div className="form-group full-width">
           <label className="form-label required">内容</label>
-          <textarea
-            className="form-textarea"
+          <TextArea
             placeholder="请输入知识库详细内容..."
             value={formData.content}
             onChange={(e) => handleContentChange(e.target.value)}
             rows={10}
-          ></textarea>
+          />
           <span className="char-count">{formData.content.length} 字符</span>
         </div>
 
@@ -193,21 +192,12 @@ export default function KnowledgeForm() {
 
         {/* 操作按钮 */}
         <div className="form-actions">
-          <button
-            type="button"
-            className="secondary-btn"
-            onClick={handleCancel}
-            disabled={submitting}
-          >
+          <Button onClick={handleCancel} disabled={submitting}>
             取消
-          </button>
-          <button
-            type="submit"
-            className="primary-btn"
-            disabled={submitting}
-          >
-            {submitting ? '保存中...' : isEditMode ? '保存修改' : '创建'}
-          </button>
+          </Button>
+          <Button type="primary" htmlType="submit" loading={submitting}>
+            {isEditMode ? '保存修改' : '创建'}
+          </Button>
         </div>
       </form>
 

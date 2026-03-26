@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { HomeOutlined, RightOutlined } from '@ant-design/icons';
 import './AdminDashboard.css';
 
 export default function AdminDashboard() {
@@ -55,10 +56,7 @@ export default function AdminDashboard() {
             <p className="header-subtitle">Rider Agent Administration Console</p>
           </div>
           <Link to="/chat" className="header-back-btn">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-              <polyline points="9 22 9 12 15 12 15 22"/>
-            </svg>
+            <HomeOutlined />
             返回客服页面
           </Link>
         </div>
@@ -89,9 +87,7 @@ export default function AdminDashboard() {
                 <h3 className="menu-title">{item.title}</h3>
                 <p className="menu-description">{item.description}</p>
                 <div className="menu-arrow">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <polyline points="9 18 15 12 9 6"/>
-                  </svg>
+                  <RightOutlined />
                 </div>
               </Link>
             ))}
