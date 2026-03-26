@@ -5,21 +5,22 @@
  * 支持工具调用和历史上下文记忆
  */
 
-import { ChatMessageHistory } from "langchain/stores/message/in_memory";
+import { InMemoryChatMessageHistory } from "@langchain/core/chat_history";
+import { BaseMessage } from "@langchain/core/messages";
 import { riderTools } from "./tools";
 import { zhipuLLMService } from "@/services/llm";
 import { getSessionMessages, saveMessage } from "@/utils/db";
 import logger from "@/utils/logger";
 
 // 会话历史存储（生产环境应使用 Redis）
-const sessionHistories = new Map<string, ChatMessageHistory>();
+const sessionHistories = new Map<string, InMemoryChatMessageHistory>();
 
 /**
  * 获取会话历史
  */
-const getChatHistory = (sessionId: string): ChatMessageHistory => {
+const getChatHistory = (sessionId: string): InMemoryChatMessageHistory => {
   if (!sessionHistories.has(sessionId)) {
-    sessionHistories.set(sessionId, new ChatMessageHistory());
+    sessionHistories.set(sessionId, new InMemoryChatMessageHistory());
   }
   return sessionHistories.get(sessionId)!;
 };
@@ -101,7 +102,7 @@ ${toolsInfo}
  * 从历史消息构建对话上下文
  */
 const buildChatContext = async (
-  history: ChatMessageHistory,
+  history: InMemoryChatMessageHistory,
 ): Promise<string> => {
   const messages = await history.getMessages();
 
@@ -112,11 +113,14 @@ const buildChatContext = async (
   // 只取最近的消息作为上下文
   const recentMessages = messages.slice(-10);
   const context = recentMessages
-    .map((m) => {
-      const role = m._getType();
-      const content = m.content as string;
-      if (role === "human") return `用户: ${content}`;
-      if (role === "ai") return `助手: ${content}`;
+    .map((m: BaseMessage) => {
+      // 使用 toDict() 或直接访问 content
+      const content = String(m.content);
+      // 使用 getType() 方法获取消息类型
+      const role = m.constructor.name;
+      if (role.includes("Human")) return `用户: ${content}`;
+      if (role.includes("AI")) return `助手: ${content}`;
+      if (role.includes("System")) return `系统: ${content}`;
       return "";
     })
     .filter(Boolean)
@@ -222,9 +226,7 @@ const invokeTool = async (
   }
 
   // 根据工具类型准备输入参数
-  let input: any = {
-    riderId,
-  };
+  let input: any = {};
 
   // 为不同工具添加特定参数
   switch (toolName) {
@@ -245,7 +247,8 @@ const invokeTool = async (
       break;
   }
 
-  const result = await tool.invoke(input);
+  // 调用工具的 func 函数而不是 invoke，避免类型问题
+  const result = await (tool as any).func(input);
   logger.info("工具调用完成", { toolName, result });
   return result as string;
 };
@@ -257,7 +260,13 @@ const generateReply = async (
   userMessage: string,
   toolResult: string,
 ): Promise<string> => {
-  const toolData = JSON.parse(toolResult);
+  let toolData: any;
+  try {
+    toolData = typeof toolResult === 'string' ? JSON.parse(toolResult) : toolResult;
+  } catch (e) {
+    toolData = { result: toolResult };
+  }
+
   const summaryPrompt = `用户问题: ${userMessage}
 
 工具返回结果:

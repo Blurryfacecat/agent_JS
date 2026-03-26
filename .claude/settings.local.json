@@ -12,7 +12,10 @@
       "Bash(curl -s http://localhost:3001/api/v1/suggestions | head -20)",
       "Bash(curl -s \"http://localhost:3001/api/v1/knowledge/entries?page=1&limit=5\" | head -30)",
       "Bash(pkill -f \"node.*backend\" || true)",
-      "Bash(lsof -ti:3000 | xargs kill -9 2>/dev/null || true)"
+      "Bash(lsof -ti:3000 | xargs kill -9 2>/dev/null || true)",
+      "Bash(sleep 2 && curl -s \"http://localhost:3001/api/v1/suggestions?limit=1\")",
+      "Bash(curl -s \"http://localhost:3001/api/v1/suggestions?limit=1\")",
+      "Bash(curl -X POST http://localhost:3001/api/v1/documents/upload \\\\\n  -F \"file=@test_document.txt\" \\\\\n  -F \"title=外卖骑手知识库测试\" \\\\\n  -F \"category=training\" \\\\\n  -F \"uploadedBy=admin\")"
     ]
   }
 }

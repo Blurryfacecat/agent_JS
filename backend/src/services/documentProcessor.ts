@@ -8,8 +8,7 @@ import fs from 'fs';
 import { ragConfig, DocumentStatus, DocumentStatusType } from '@/config/rag';
 import { getSQLiteDB } from '@/utils/db';
 import logger from '@/utils/logger';
-// TODO: MinIO 服务未启动，暂时注释
-// import { initializeBucket, uploadFileToMinio, deleteDocumentFiles } from './minio';
+import { initializeBucket, uploadFileToMinio, deleteDocumentFiles } from './minio';
 import { parseDocument, extractFileType, isSupportedFileType } from './documentParser';
 import { chunkDocument, Chunk } from './documentChunker';
 import { chromaService } from './chroma';
@@ -44,7 +43,13 @@ export const processUploadedDocument = async (
   });
 
   try {
-    // 1. 保存到数据库 (pending 状态)
+    // 1. 初始化 MinIO bucket（仅首次）
+    await initializeBucket();
+
+    // 2. 上传到 MinIO
+    const minioPath = await uploadFileToMinio(docId, file.originalname, file.path, fileType);
+
+    // 3. 保存到数据库
     await saveDocumentToDB({
       docId,
       title,
@@ -52,16 +57,10 @@ export const processUploadedDocument = async (
       fileName: file.originalname,
       fileType,
       fileSize: file.size,
+      minioPath,
       uploadedBy,
-      status: DocumentStatus.PENDING,
+      status: DocumentStatus.PROCESSING,
     });
-
-    // 2. 上传到 MinIO (TODO: MinIO 服务未启动，暂时跳过)
-    // await initializeBucket();
-    // const minioPath = await uploadFileToMinio(docId, file.originalname, file.path, fileType);
-
-    // 3. 更新数据库状态为 processing
-    await updateDocumentInDB(docId, { status: DocumentStatus.PROCESSING });
 
     // 4. 异步处理文档（不阻塞响应）
     processDocumentAsync(docId, file.path, title, category).catch((error) => {
@@ -80,8 +79,7 @@ export const processUploadedDocument = async (
     // 清理资源
     try {
       fs.unlinkSync(file.path);
-      // TODO: MinIO 清理
-      // await deleteDocumentFiles(docId);
+      await deleteDocumentFiles(docId);
     } catch (e) {
       logger.error('清理资源失败', { error: e });
     }
@@ -109,16 +107,24 @@ const processDocumentAsync = async (
     logger.info('异步处理文档开始', { docId });
 
     // 1. 解析文档
+    logger.info('步骤1: 开始解析文档', { docId, filePath });
     const parseResult = await parseDocument(filePath, extractFileType(filePath));
+    logger.info('文档解析成功', { contentLength: parseResult.content.length });
 
     // 2. 分块
+    logger.info('步骤2: 开始分块', { docId });
     const chunks = await chunkDocument(docId, parseResult.content, title, category);
+    logger.info('分块完成', { chunkCount: chunks.length });
 
     // 3. 保存分块到数据库
+    logger.info('步骤3: 保存分块到数据库', { docId, chunkCount: chunks.length });
     await saveChunksToDB(docId, chunks);
+    logger.info('分块保存完成');
 
     // 4. 向量化并存储到 ChromaDB
+    logger.info('步骤4: 开始向量化', { docId });
     await vectorizeAndStoreChunks(docId, chunks, title, category);
+    logger.info('向量化完成');
 
     // 5. 更新文档状态为完成
     await updateDocumentInDB(docId, {
@@ -128,7 +134,7 @@ const processDocumentAsync = async (
 
     logger.info('文档处理完成', { docId, chunkCount: chunks.length });
   } catch (error) {
-    logger.error('文档处理失败', { docId, error });
+    logger.error('文档处理失败', { docId, error: error instanceof Error ? error.stack : String(error) });
 
     await updateDocumentInDB(docId, {
       status: DocumentStatus.FAILED,
@@ -402,8 +408,8 @@ export const deleteDocument = async (docId: string): Promise<void> => {
     // 3. 从数据库删除文档
     db.prepare('DELETE FROM documents WHERE doc_id = ?').run(docId);
 
-    // 4. 从 MinIO 删除文件 (TODO: MinIO 服务未启动)
-    // await deleteDocumentFiles(docId);
+    // 4. 从 MinIO 删除文件
+    await deleteDocumentFiles(docId);
 
     logger.info('文档删除成功', { docId });
   } catch (error) {

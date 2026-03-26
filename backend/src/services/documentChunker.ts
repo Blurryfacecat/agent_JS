@@ -52,26 +52,34 @@ export const chunkDocument = async (
 
   let chunks: Chunk[];
 
-  switch (strategy) {
-    case ChunkStrategy.FIXED_SIZE:
-      chunks = chunkByFixedSize(docId, content, title, category);
-      break;
-    case ChunkStrategy.PARAGRAPH:
-      chunks = chunkByParagraph(docId, content, title, category);
-      break;
-    case ChunkStrategy.SENTENCE:
-      chunks = chunkBySentence(docId, content, title, category);
-      break;
-    default:
-      chunks = chunkByFixedSize(docId, content, title, category);
+  try {
+    switch (strategy) {
+      case ChunkStrategy.FIXED_SIZE:
+        logger.debug('使用固定大小分块策略');
+        chunks = chunkByFixedSize(docId, content, title, category);
+        break;
+      case ChunkStrategy.PARAGRAPH:
+        logger.debug('使用段落分块策略');
+        chunks = chunkByParagraph(docId, content, title, category);
+        break;
+      case ChunkStrategy.SENTENCE:
+        logger.debug('使用句子分块策略');
+        chunks = chunkBySentence(docId, content, title, category);
+        break;
+      default:
+        chunks = chunkByFixedSize(docId, content, title, category);
+    }
+
+    logger.info('文档分块完成', {
+      docId,
+      chunkCount: chunks.length,
+    });
+
+    return chunks;
+  } catch (error) {
+    logger.error('文档分块失败', { docId, error: error instanceof Error ? error.stack : String(error) });
+    throw error;
   }
-
-  logger.info('文档分块完成', {
-    docId,
-    chunkCount: chunks.length,
-  });
-
-  return chunks;
 };
 
 /**
@@ -83,6 +91,8 @@ const chunkByFixedSize = (
   title?: string,
   category?: string,
 ): Chunk[] => {
+  logger.info('chunkByFixedSize 开始', { docId, contentLength: content.length });
+
   const chunks: Chunk[] = [];
   const chunkSize = ragConfig.chunkSize;
   const overlap = ragConfig.chunkOverlap;
@@ -90,8 +100,12 @@ const chunkByFixedSize = (
 
   let startPosition = 0;
   let chunkIndex = 0;
+  let maxIterations = 10000; // 防止无限循环
+  let iterations = 0;
 
-  while (startPosition < content.length) {
+  while (startPosition < content.length && iterations < maxIterations) {
+    iterations++;
+
     // 计算当前块的结束位置
     let endPosition = startPosition + chunkSize;
 
@@ -108,6 +122,13 @@ const chunkByFixedSize = (
 
     // 提取分块内容
     const chunkContent = content.slice(startPosition, endPosition).trim();
+
+    logger.debug(`处理分块 ${chunkIndex}`, {
+      startPosition,
+      endPosition,
+      contentLength: chunkContent.length,
+      trimmedLength: chunkContent.trim().length
+    });
 
     // 跳过太短的块
     if (chunkContent.length >= minChunkSize) {
@@ -127,16 +148,36 @@ const chunkByFixedSize = (
       });
 
       chunkIndex++;
+      logger.debug(`添加分块 ${chunkIndex - 1} 成功`, { chunkSize: chunkContent.length });
     }
 
     // 移动到下一个块（考虑重叠）
+    const oldPosition = startPosition;
     startPosition = endPosition - overlap;
 
     // 避免无限循环
     if (startPosition >= endPosition) {
       startPosition = endPosition;
     }
+
+    // 检查是否有进展
+    if (startPosition === oldPosition && endPosition < content.length) {
+      logger.warn('分块没有进展，强制移动', { startPosition, endPosition, contentLength: content.length });
+      startPosition = endPosition;
+    }
+
+    // 如果到达末尾，退出
+    if (startPosition >= content.length) {
+      logger.info('到达文档末尾', { startPosition, contentLength: content.length });
+      break;
+    }
   }
+
+  if (iterations >= maxIterations) {
+    logger.error('分块达到最大迭代次数', { iterations, contentLength: content.length });
+  }
+
+  logger.info('chunkByFixedSize 完成', { docId, chunkCount: chunks.length, iterations });
 
   return chunks;
 };
