@@ -191,6 +191,85 @@ export async function clearKnowledge() {
   });
 }
 
+/**
+ * 获取知识库条目列表
+ * @param {object} params - 查询参数
+ * @returns {Promise} 返回知识库列表
+ */
+export async function getKnowledgeEntries(params = {}) {
+  const { page = 1, limit = 20, category, search } = params;
+  const queryParams = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+  });
+
+  if (category) queryParams.append('category', category);
+  if (search) queryParams.append('search', search);
+
+  return request(`/knowledge/entries?${queryParams}`);
+}
+
+/**
+ * 获取知识库条目详情
+ * @param {number} id - 条目ID
+ * @returns {Promise} 返回条目详情
+ */
+export async function getKnowledgeEntry(id) {
+  return request(`/knowledge/entries/${id}`);
+}
+
+/**
+ * 创建知识库条目
+ * @param {object} data - 条目数据
+ * @returns {Promise} 返回创建结果
+ */
+export async function createKnowledgeEntry(data) {
+  return request('/knowledge/entries', {
+    method: 'POST',
+    body: data,
+  });
+}
+
+/**
+ * 更新知识库条目
+ * @param {number} id - 条目ID
+ * @param {object} data - 更新数据
+ * @returns {Promise} 返回更新结果
+ */
+export async function updateKnowledgeEntry(id, data) {
+  return request(`/knowledge/entries/${id}`, {
+    method: 'PUT',
+    body: data,
+  });
+}
+
+/**
+ * 删除知识库条目
+ * @param {number} id - 条目ID
+ * @returns {Promise} 返回删除结果
+ */
+export async function deleteKnowledgeEntry(id) {
+  return request(`/knowledge/entries/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+/**
+ * 获取知识库分类列表
+ * @returns {Promise} 返回分类列表
+ */
+export async function getKnowledgeCategories() {
+  return request('/knowledge/categories');
+}
+
+/**
+ * 获取知识库条目统计
+ * @returns {Promise} 返回统计信息
+ */
+export async function getKnowledgeEntriesStats() {
+  return request('/knowledge/entries/stats');
+}
+
 // ==================== 反馈相关接口 ====================
 
 /**
@@ -434,6 +513,14 @@ const api = {
   deleteDocuments,
   getKnowledgeStats,
   clearKnowledge,
+  // 知识库条目管理
+  getKnowledgeEntries,
+  getKnowledgeEntry,
+  createKnowledgeEntry,
+  updateKnowledgeEntry,
+  deleteKnowledgeEntry,
+  getKnowledgeCategories,
+  getKnowledgeEntriesStats,
 
   // 反馈
   submitFeedback,
