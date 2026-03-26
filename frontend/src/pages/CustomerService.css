@@ -166,6 +166,34 @@
   flex-shrink: 0;
 }
 
+.suggestion-icon {
+  margin-right: var(--spacing-s);
+}
+
+.suggestions-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-s);
+  padding: var(--spacing-m);
+}
+
+.suggestions-empty {
+  text-align: center;
+  color: var(--text-secondary);
+  padding: var(--spacing-m);
+  margin: 0;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* ==================== Info Cards ==================== */
 .cards-row {
   display: grid;
@@ -337,6 +365,58 @@
     transform: scale(1);
     opacity: 1;
   }
+}
+
+/* ==================== Feedback Buttons ==================== */
+.message-content {
+  margin-bottom: var(--spacing-s);
+}
+
+.feedback-buttons {
+  display: flex;
+  gap: var(--spacing-s);
+  margin-top: var(--spacing-s);
+  padding-top: var(--spacing-s);
+  border-top: 1px solid var(--border-color);
+}
+
+.feedback-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-button);
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.feedback-btn:hover {
+  background: var(--bg-primary);
+  border-color: var(--text-secondary);
+}
+
+.feedback-btn.active {
+  background: #e8f5e9;
+  border-color: #4caf50;
+  color: #4caf50;
+}
+
+.feedback-btn.not-helpful.active {
+  background: #ffebee;
+  border-color: #f44336;
+  color: #f44336;
+}
+
+.feedback-btn svg {
+  flex-shrink: 0;
+}
+
+.feedback-btn span {
+  font-size: 12px;
 }
 
 /* ==================== Input Area ==================== */

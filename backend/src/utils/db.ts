@@ -54,16 +54,16 @@ const initializeTables = (database: Database.Database): void => {
     CREATE INDEX IF NOT EXISTS idx_knowledge_category ON knowledge(category);
   `);
 
-  // 用户反馈表
+  // 用户反馈表 (is_helpful: 1=好/有用, 0=不好/没用)
   database.exec(`
     CREATE TABLE IF NOT EXISTS feedback (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       message_id INTEGER NOT NULL,
-      rating INTEGER NOT NULL CHECK(rating >= 1 AND rating <= 5),
-      comment TEXT,
+      is_helpful INTEGER NOT NULL CHECK(is_helpful = 0 OR is_helpful = 1),
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE
     );
+    CREATE INDEX IF NOT EXISTS idx_feedback_message_id ON feedback(message_id);
   `);
 
   // 文档表 (RAG)
@@ -105,6 +105,25 @@ const initializeTables = (database: Database.Database): void => {
     CREATE INDEX IF NOT EXISTS idx_chunks_doc_id ON document_chunks(doc_id);
     CREATE INDEX IF NOT EXISTS idx_chunks_chroma_id ON document_chunks(chroma_id);
     CREATE INDEX IF NOT EXISTS idx_chunks_chunk_id ON document_chunks(chunk_id);
+  `);
+
+  // 猜你想问表
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS suggestions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title VARCHAR(100) NOT NULL,
+      content TEXT NOT NULL,
+      icon VARCHAR(50),
+      category VARCHAR(50),
+      sort_order INTEGER DEFAULT 0,
+      is_active BOOLEAN DEFAULT 1,
+      click_count INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_suggestions_category ON suggestions(category);
+    CREATE INDEX IF NOT EXISTS idx_suggestions_active ON suggestions(is_active);
+    CREATE INDEX IF NOT EXISTS idx_suggestions_sort ON suggestions(sort_order);
   `);
 
   isInitialized = true;
@@ -235,30 +254,39 @@ export const getSessionMessages = (sessionId: string, limit = 50): any[] => {
 
 export interface SaveFeedbackParams {
   messageId: number;
-  rating: number;
-  comment?: string | null;
-}
-
-export interface FeedbackListParams {
-  page: number;
-  limit: number;
-  minRating?: number;
-  maxRating?: number;
+  isHelpful: boolean; // true=好/有用, false=不好/没用
 }
 
 /**
- * 保存用户反馈
+ * 保存用户反馈（好/不好）
  */
 export const saveFeedback = (params: SaveFeedbackParams): number => {
   const database = getSQLiteDB();
 
-  const stmt = database.prepare(`
-    INSERT INTO feedback (message_id, rating, comment)
-    VALUES (?, ?, ?)
+  // 先检查是否已有反馈，有则更新
+  const existingStmt = database.prepare(`
+    SELECT id FROM feedback WHERE message_id = ?
   `);
+  const existing = existingStmt.get(params.messageId);
 
-  const result = stmt.run(params.messageId, params.rating, params.comment ?? null);
-  return result.lastInsertRowid as number;
+  if (existing) {
+    // 更新现有反馈
+    const updateStmt = database.prepare(`
+      UPDATE feedback
+      SET is_helpful = ?, created_at = CURRENT_TIMESTAMP
+      WHERE message_id = ?
+    `);
+    updateStmt.run(params.isHelpful ? 1 : 0, params.messageId);
+    return (existing as { id: number }).id;
+  } else {
+    // 插入新反馈
+    const insertStmt = database.prepare(`
+      INSERT INTO feedback (message_id, is_helpful)
+      VALUES (?, ?)
+    `);
+    const result = insertStmt.run(params.messageId, params.isHelpful ? 1 : 0);
+    return result.lastInsertRowid as number;
+  }
 };
 
 /**
@@ -268,10 +296,9 @@ export const getFeedbackByMessageId = (messageId: number): any | null => {
   const database = getSQLiteDB();
 
   const stmt = database.prepare(`
-    SELECT id, message_id, rating, comment, created_at
+    SELECT id, message_id, is_helpful, created_at
     FROM feedback
     WHERE message_id = ?
-    ORDER BY created_at DESC
     LIMIT 1
   `);
 
@@ -279,44 +306,233 @@ export const getFeedbackByMessageId = (messageId: number): any | null => {
 };
 
 /**
- * 获取反馈列表（支持分页和评分筛选）
+ * 获取反馈统计
  */
-export const getFeedbackList = (params: FeedbackListParams): any => {
+export const getFeedbackStats = (): any => {
   const database = getSQLiteDB();
-  const { page, limit, minRating, maxRating } = params;
+
+  const stats = database.prepare(`
+    SELECT
+      COUNT(*) as total,
+      SUM(CASE WHEN is_helpful = 1 THEN 1 ELSE 0 END) as helpful_count,
+      SUM(CASE WHEN is_helpful = 0 THEN 1 ELSE 0 END) as not_helpful_count
+    FROM feedback
+  `).get() as {
+    total: number;
+    helpful_count: number;
+    not_helpful_count: number;
+  };
+
+  return stats;
+};
+
+// ============ 猜你想问相关函数 ============
+
+export interface SaveSuggestionParams {
+  title: string;
+  content: string;
+  icon?: string;
+  category?: string;
+  sortOrder?: number;
+}
+
+export interface UpdateSuggestionParams {
+  id: number;
+  title?: string;
+  content?: string;
+  icon?: string;
+  category?: string;
+  sortOrder?: number;
+  isActive?: boolean;
+}
+
+export interface GetSuggestionsParams {
+  category?: string;
+  limit?: number;
+  random?: boolean;
+}
+
+/**
+ * 创建猜你想问
+ */
+export const createSuggestion = (params: SaveSuggestionParams): number => {
+  const database = getSQLiteDB();
+
+  const stmt = database.prepare(`
+    INSERT INTO suggestions (title, content, icon, category, sort_order)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+
+  const result = stmt.run(
+    params.title,
+    params.content,
+    params.icon || null,
+    params.category || null,
+    params.sortOrder || 0
+  );
+
+  return result.lastInsertRowid as number;
+};
+
+/**
+ * 更新猜你想问
+ */
+export const updateSuggestion = (params: UpdateSuggestionParams): boolean => {
+  const database = getSQLiteDB();
+
+  const updates: string[] = [];
+  const values: (string | number | boolean)[] = [];
+
+  if (params.title !== undefined) {
+    updates.push('title = ?');
+    values.push(params.title);
+  }
+  if (params.content !== undefined) {
+    updates.push('content = ?');
+    values.push(params.content);
+  }
+  if (params.icon !== undefined) {
+    updates.push('icon = ?');
+    values.push(params.icon);
+  }
+  if (params.category !== undefined) {
+    updates.push('category = ?');
+    values.push(params.category);
+  }
+  if (params.sortOrder !== undefined) {
+    updates.push('sort_order = ?');
+    values.push(params.sortOrder);
+  }
+  if (params.isActive !== undefined) {
+    updates.push('is_active = ?');
+    values.push(params.isActive ? 1 : 0);
+  }
+
+  if (updates.length === 0) return false;
+
+  updates.push('updated_at = CURRENT_TIMESTAMP');
+  values.push(params.id);
+
+  const stmt = database.prepare(`
+    UPDATE suggestions
+    SET ${updates.join(', ')}
+    WHERE id = ?
+  `);
+
+  const result = stmt.run(...values);
+  return result.changes > 0;
+};
+
+/**
+ * 删除猜你想问
+ */
+export const deleteSuggestion = (id: number): boolean => {
+  const database = getSQLiteDB();
+
+  const stmt = database.prepare(`
+    DELETE FROM suggestions
+    WHERE id = ?
+  `);
+
+  const result = stmt.run(id);
+  return result.changes > 0;
+};
+
+/**
+ * 获取猜你想问列表
+ */
+export const getSuggestions = (params: GetSuggestionsParams = {}): any[] => {
+  const database = getSQLiteDB();
+
+  const { category, limit = 10, random = false } = params;
+
+  let query = `
+    SELECT id, title, content, icon, category, sort_order
+    FROM suggestions
+    WHERE is_active = 1
+  `;
+  const queryParams: (string | number)[] = [];
+
+  if (category) {
+    query += ' AND category = ?';
+    queryParams.push(category);
+  }
+
+  if (random) {
+    query += ' ORDER BY RANDOM()';
+  } else {
+    query += ' ORDER BY sort_order ASC, click_count DESC';
+  }
+
+  query += ' LIMIT ?';
+  queryParams.push(limit);
+
+  const stmt = database.prepare(query);
+  return stmt.all(...queryParams);
+};
+
+/**
+ * 增加点击次数
+ */
+export const incrementSuggestionClick = (id: number): boolean => {
+  const database = getSQLiteDB();
+
+  const stmt = database.prepare(`
+    UPDATE suggestions
+    SET click_count = click_count + 1
+    WHERE id = ?
+  `);
+
+  const result = stmt.run(id);
+  return result.changes > 0;
+};
+
+/**
+ * 获取猜你想问详情
+ */
+export const getSuggestionById = (id: number): any | null => {
+  const database = getSQLiteDB();
+
+  const stmt = database.prepare(`
+    SELECT id, title, content, icon, category, sort_order, is_active, click_count, created_at, updated_at
+    FROM suggestions
+    WHERE id = ?
+  `);
+
+  return stmt.get(id) || null;
+};
+
+/**
+ * 获取所有猜你想问（包括未激活的，用于管理）
+ */
+export const getAllSuggestions = (params: { page?: number; limit?: number; category?: string } = {}): any => {
+  const database = getSQLiteDB();
+
+  const { page = 1, limit = 20, category } = params;
   const offset = (page - 1) * limit;
 
-  // 构建查询条件
   let whereClause = '';
-  const queryParams: number[] = [];
+  const queryParams: (string | number)[] = [];
 
-  if (minRating !== undefined && maxRating !== undefined) {
-    whereClause = 'WHERE rating BETWEEN ? AND ?';
-    queryParams.push(minRating, maxRating);
-  } else if (minRating !== undefined) {
-    whereClause = 'WHERE rating >= ?';
-    queryParams.push(minRating);
-  } else if (maxRating !== undefined) {
-    whereClause = 'WHERE rating <= ?';
-    queryParams.push(maxRating);
+  if (category) {
+    whereClause = 'WHERE category = ?';
+    queryParams.push(category);
   }
 
   // 查询总数
   const countStmt = database.prepare(`
     SELECT COUNT(*) as total
-    FROM feedback
+    FROM suggestions
     ${whereClause}
   `);
   const countResult = countStmt.get(...queryParams) as { total: number };
 
-  // 查询反馈列表
+  // 查询列表
   const listStmt = database.prepare(`
-    SELECT f.id, f.message_id, f.rating, f.comment, f.created_at,
-           m.session_id, m.role, m.content as message_content
-    FROM feedback f
-    LEFT JOIN messages m ON f.message_id = m.id
+    SELECT id, title, content, icon, category, sort_order, is_active, click_count, created_at, updated_at
+    FROM suggestions
     ${whereClause}
-    ORDER BY f.created_at DESC
+    ORDER BY sort_order ASC, created_at DESC
     LIMIT ? OFFSET ?
   `);
 

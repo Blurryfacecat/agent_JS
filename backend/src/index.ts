@@ -10,6 +10,7 @@ import chatRouter from "@/routes/chat";
 import knowledgeRouter from "@/routes/knowledge";
 import feedbackRouter from "@/routes/feedback";
 import documentsRouter from "@/routes/documents";
+import suggestionsRouter from "@/routes/suggestions";
 
 class App {
   public app: Application;
@@ -56,6 +57,7 @@ class App {
     this.app.use(`${config.apiPrefix}/knowledge`, knowledgeRouter);
     this.app.use(`${config.apiPrefix}/feedback`, feedbackRouter);
     this.app.use(`${config.apiPrefix}/documents`, documentsRouter);
+    this.app.use(`${config.apiPrefix}/suggestions`, suggestionsRouter);
   }
 
   private initializeErrorHandling(): void {

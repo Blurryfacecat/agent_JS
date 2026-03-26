@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { successResponse, errorResponse } from '@/utils/response';
 import logger from '@/utils/logger';
 import { processMessage } from '@/agents/riderAgent';
-import { getSessionMessages } from '@/utils/db';
+import { getSessionMessages, saveMessage } from '@/utils/db';
 
 const router = Router();
 
@@ -33,6 +33,14 @@ router.post('/chat', async (req: Request, res: Response) => {
       sessionId: currentSessionId,
     });
 
+    // 保存用户消息
+    saveMessage({
+      sessionId: currentSessionId,
+      userId: riderId,
+      role: 'user',
+      content: message,
+    });
+
     // 使用 Agent 处理消息（包含工具调用、历史记录、数据库保存）
     let reply: string;
     try {
@@ -44,16 +52,30 @@ router.post('/chat', async (req: Request, res: Response) => {
       return errorResponse(res, errorMsg, 503, 503);
     }
 
+    // 保存助手回复并获取消息ID
+    saveMessage({
+      sessionId: currentSessionId,
+      userId: riderId,
+      role: 'assistant',
+      content: reply,
+    });
+
+    // 获取最新消息的数据库ID（助手回复）
+    const messages = getSessionMessages(currentSessionId);
+    const lastAssistantMessage = messages.filter(m => m.role === 'assistant').pop();
+
     const response = {
       riderId,
       sessionId: currentSessionId,
       reply,
+      messageId: lastAssistantMessage?.id, // 返回数据库消息ID用于反馈
       timestamp: new Date().toISOString(),
       model: 'rider-agent-v1',
     };
 
     logger.info('对话接口返回成功', {
       replyLength: reply.length,
+      messageId: lastAssistantMessage?.id,
       model: response.model,
     });
 

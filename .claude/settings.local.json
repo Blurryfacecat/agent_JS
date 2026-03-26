@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -X POST http://localhost:3001/api/v1/feedback \\\\\n  -H \"Content-Type: application/json\" \\\\\n  -d '{\"messageId\":1,\"isHelpful\":true}')",
+      "Bash(curl -s -X POST http://localhost:3001/api/v1/chat \\\\\n  -H \"Content-Type: application/json\" \\\\\n  -d '{\"riderId\":\"test123\",\"message\":\"测试消息\"}' | head -5)",
+      "Bash(curl -s -X POST http://localhost:3001/api/v1/feedback \\\\\n  -H \"Content-Type: application/json\" \\\\\n  -d '{\"messageId\":4,\"isHelpful\":true}')",
+      "Bash(curl -s http://localhost:3001/api/v1/feedback/stats)",
+      "Bash(curl -s \"http://localhost:3001/api/v1/suggestions?limit=5&random=true\")",
+      "Bash(curl -s -X POST http://localhost:3001/api/v1/suggestions/batch \\\\\n  -H \"Content-Type: application/json\" \\\\\n  -d '{\n    \"suggestions\": [\n      { \"title\": \"查看我的订单\", \"content\": \"查看我的订单\", \"icon\": \"📋\", \"category\": \"order\", \"sortOrder\": 1 },\n      { \"title\": \"查询配送进度\", \"content\": \"查询配送进度\", \"icon\": \"📍\", \"category\": \"delivery\", \"sortOrder\": 2 },\n      { \"title\": \"费用相关问题\", \"content\": \"费用相关问题\", \"icon\": \"💰\", \"category\": \"payment\", \"sortOrder\": 3 },\n      { \"title\": \"投诉与建议\", \"content\": \"投诉与建议\", \"icon\": \"💬\", \"category\": \"support\", \"sortOrder\": 4 },\n      { \"title\": \"如何修改配送地址\", \"content\": \"如何修改配送地址\", \"icon\": \"🏠\", \"category\": \"delivery\", \"sortOrder\": 5 },\n      { \"title\": \"联系人工客服\", \"content\": \"联系人工客服\", \"icon\": \"🎧\", \"category\": \"support\", \"sortOrder\": 6 },\n      { \"title\": \"查看配送时间\", \"content\": \"查看配送时间\", \"icon\": \"⏰\", \"category\": \"delivery\", \"sortOrder\": 7 },\n      { \"title\": \"退款问题\", \"content\": \"退款问题\", \"icon\": \"💳\", \"category\": \"payment\", \"sortOrder\": 8 }\n    ]\n  }')"
+    ]
+  }
+}

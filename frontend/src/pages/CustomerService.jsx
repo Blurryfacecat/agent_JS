@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { sendChatMessage } from '../services/api';
+import { sendChatMessage, getSuggestions, recordSuggestionClick, submitFeedback } from '../services/api';
 import './CustomerService.css';
 
 // 默认骑手ID (实际应用中应从用户登录信息获取)
@@ -7,11 +7,15 @@ const DEFAULT_RIDER_ID = 'rider_guest_001';
 
 export default function CustomerService() {
   const [messages, setMessages] = useState([
-    { id: 1, role: 'assistant', content: '您好！我是您的AI助手，请问有什么可以帮您？' }
+    { id: 1, role: 'assistant', content: '您好！我是您的AI助手，请问有什么可以帮您？', dbId: null }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(true);
+  const [suggestions, setSuggestions] = useState([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(true);
+  const [feedbackableMessageId, setFeedbackableMessageId] = useState(null); // 当前可反馈的消息ID
+  const [feedbackState, setFeedbackState] = useState({}); // { messageId: 'helpful' | 'notHelpful' | null }
   const messagesEndRef = useRef(null);
 
   const sessionId = useRef(`session_${Date.now()}`);
@@ -25,32 +29,64 @@ export default function CustomerService() {
     scrollToBottom();
   }, [messages]);
 
-  // 发送消息
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+  // 加载猜你想问
+  useEffect(() => {
+    const loadSuggestions = async () => {
+      try {
+        setIsLoadingSuggestions(true);
+        const data = await getSuggestions({ limit: 5, random: true });
+        if (data.data && data.data.suggestions) {
+          setSuggestions(data.data.suggestions);
+        }
+      } catch (error) {
+        console.error('加载猜你想问失败:', error);
+        // 使用默认建议
+        setSuggestions([
+          { id: 1, title: '查看我的订单', content: '查看我的订单', icon: '📋' },
+          { id: 2, title: '查询配送进度', content: '查询配送进度', icon: '📍' },
+          { id: 3, title: '费用相关问题', content: '费用相关问题', icon: '💰' },
+          { id: 4, title: '投诉与建议', content: '投诉与建议', icon: '💬' }
+        ]);
+      } finally {
+        setIsLoadingSuggestions(false);
+      }
+    };
+
+    loadSuggestions();
+  }, []);
+
+  // 发送消息的核心逻辑
+  const sendMessage = async (messageContent) => {
+    if (!messageContent.trim() || isLoading) return;
+
+    // 用户发送新消息时，隐藏之前的反馈按钮
+    setFeedbackableMessageId(null);
 
     const userMessage = {
       id: Date.now(),
       role: 'user',
-      content: input.trim()
+      content: messageContent.trim()
     };
 
     setMessages(prev => [...prev, userMessage]);
-    const messageContent = input.trim();
     setInput('');
     setShowSuggestions(false);
     setIsLoading(true);
 
     try {
-      const data = await sendChatMessage(DEFAULT_RIDER_ID, messageContent, sessionId.current);
+      const data = await sendChatMessage(DEFAULT_RIDER_ID, messageContent.trim(), sessionId.current);
 
       if (data.data) {
         const assistantMessage = {
           id: Date.now() + 1,
+          dbId: data.data.messageId, // 保存数据库消息ID用于反馈
           role: 'assistant',
           content: data.data.reply || data.data.response || '抱歉，我暂时无法理解您的问题。',
         };
         setMessages(prev => [...prev, assistantMessage]);
+
+        // Assistant 消息到来时，显示反馈按钮
+        setFeedbackableMessageId(assistantMessage.id);
 
         // 更新sessionId (如果后端返回了新的)
         if (data.data.sessionId) {
@@ -65,31 +101,78 @@ export default function CustomerService() {
         content: `抱歉，服务出现异常：${error.message}`,
       };
       setMessages(prev => [...prev, errorMessage]);
+      setFeedbackableMessageId(errorMessage.id);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // 快捷建议
-  const suggestions = [
-    { id: 1, text: '查看我的订单', icon: '📋' },
-    { id: 2, text: '查询配送进度', icon: '📍' },
-    { id: 3, text: '费用相关问题', icon: '💰' },
-    { id: 4, text: '投诉与建议', icon: '💬' }
-  ];
-
-  const handleSuggestionClick = (text) => {
-    setInput(text);
+  // 发送消息（从输入框）
+  const handleSend = () => {
+    sendMessage(input);
   };
 
-  const refreshSuggestions = () => {
-    // 轮换建议内容
-    console.log('刷新建议');
+  // 快捷建议点击 - 直接发送消息
+  const handleSuggestionClick = async (suggestion) => {
+    const text = suggestion.content || suggestion.title;
+
+    // 记录点击
+    try {
+      await recordSuggestionClick(suggestion.id);
+    } catch (error) {
+      console.error('记录点击失败:', error);
+    }
+
+    // 直接发送消息
+    sendMessage(text);
+  };
+
+  // 刷新建议
+  const refreshSuggestions = async () => {
+    try {
+      setIsLoadingSuggestions(true);
+      const data = await getSuggestions({ limit: 5, random: true });
+      if (data.data && data.data.suggestions) {
+        setSuggestions(data.data.suggestions);
+      }
+    } catch (error) {
+      console.error('刷新建议失败:', error);
+    } finally {
+      setIsLoadingSuggestions(false);
+    }
   };
 
   // 语音输入
   const handleVoiceInput = () => {
     console.log('语音输入');
+  };
+
+  // 处理反馈点击
+  const handleFeedback = async (clientMessageId, dbMessageId, isHelpful) => {
+    // 如果已经点击过相同的反馈，不再重复提交
+    if (feedbackState[clientMessageId] === (isHelpful ? 'helpful' : 'notHelpful')) {
+      return;
+    }
+
+    // 更新UI状态
+    setFeedbackState(prev => ({
+      ...prev,
+      [clientMessageId]: isHelpful ? 'helpful' : 'notHelpful'
+    }));
+
+    // 发送到后端 (使用数据库ID)
+    try {
+      await submitFeedback(dbMessageId, isHelpful);
+      console.log('反馈提交成功', { dbMessageId, isHelpful });
+    } catch (error) {
+      console.error('反馈提交失败:', error);
+      // 失败时回滚UI状态
+      setFeedbackState(prev => {
+        const newState = { ...prev };
+        delete newState[clientMessageId];
+        return newState;
+      });
+    }
   };
 
   return (
@@ -109,8 +192,20 @@ export default function CustomerService() {
           <div className="suggestions-section">
             <div className="suggestions-header">
               <span className="suggestions-title">猜你想问:</span>
-              <button className="refresh-btn" onClick={refreshSuggestions}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <button
+                className="refresh-btn"
+                onClick={refreshSuggestions}
+                disabled={isLoadingSuggestions}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  style={{ animation: isLoadingSuggestions ? 'spin 1s linear infinite' : 'none' }}
+                >
                   <path d="M23 4v6h-6M1 20v-6h6"/>
                   <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
                 </svg>
@@ -118,18 +213,31 @@ export default function CustomerService() {
               </button>
             </div>
             <div className="suggestions-list">
-              {suggestions.map((suggestion) => (
-                <button
-                  key={suggestion.id}
-                  className="suggestion-item"
-                  onClick={() => handleSuggestionClick(suggestion.text)}
-                >
-                  <span className="suggestion-text">{suggestion.text}</span>
-                  <svg className="suggestion-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M9 18l6-6-6-6"/>
-                  </svg>
-                </button>
-              ))}
+              {isLoadingSuggestions ? (
+                <div className="suggestions-loading">
+                  <span className="dot"></span>
+                  <span className="dot"></span>
+                  <span className="dot"></span>
+                </div>
+              ) : suggestions.length > 0 ? (
+                suggestions.map((suggestion) => (
+                  <button
+                    key={suggestion.id}
+                    className="suggestion-item"
+                    onClick={() => handleSuggestionClick(suggestion)}
+                  >
+                    <span className="suggestion-text">
+                      {suggestion.icon && <span className="suggestion-icon">{suggestion.icon}</span>}
+                      {suggestion.title}
+                    </span>
+                    <svg className="suggestion-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M9 18l6-6-6-6"/>
+                    </svg>
+                  </button>
+                ))
+              ) : (
+                <p className="suggestions-empty">暂无推荐问题</p>
+              )}
             </div>
           </div>
 
@@ -177,7 +285,33 @@ export default function CustomerService() {
             className={`message-row ${msg.role === 'user' ? 'user-row' : 'assistant-row'}`}
           >
             <div className={`message-bubble ${msg.role === 'user' ? 'user-bubble' : 'assistant-bubble'}`}>
-              {msg.content}
+              <div className="message-content">{msg.content}</div>
+
+              {/* 只有 assistant 消息且是当前可反馈的消息才显示反馈按钮 */}
+              {msg.role === 'assistant' && msg.id === feedbackableMessageId && msg.dbId && (
+                <div className="feedback-buttons">
+                  <button
+                    className={`feedback-btn helpful ${feedbackState[msg.id] === 'helpful' ? 'active' : ''}`}
+                    onClick={() => handleFeedback(msg.id, msg.dbId, true)}
+                    title="有用"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
+                    </svg>
+                    <span>有用</span>
+                  </button>
+                  <button
+                    className={`feedback-btn not-helpful ${feedbackState[msg.id] === 'notHelpful' ? 'active' : ''}`}
+                    onClick={() => handleFeedback(msg.id, msg.dbId, false)}
+                    title="没用"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/>
+                    </svg>
+                    <span>没用</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         ))}

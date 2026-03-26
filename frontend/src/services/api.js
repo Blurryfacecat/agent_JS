@@ -194,15 +194,15 @@ export async function clearKnowledge() {
 // ==================== 反馈相关接口 ====================
 
 /**
- * 提交用户反馈
+ * 提交用户反馈（好/不好）
  * @param {number} messageId - 消息ID
- * @param {number} rating - 评分 (1-5)
+ * @param {boolean} isHelpful - 是否有用 (true=好, false=不好)
  * @returns {Promise} 返回提交结果
  */
-export async function submitFeedback(messageId, rating) {
+export async function submitFeedback(messageId, isHelpful) {
   return request('/feedback', {
     method: 'POST',
-    body: { messageId, rating },
+    body: { messageId, isHelpful },
   });
 }
 
@@ -213,24 +213,6 @@ export async function submitFeedback(messageId, rating) {
  */
 export async function getFeedbackByMessage(messageId) {
   return request(`/feedback/message/${messageId}`);
-}
-
-/**
- * 获取反馈列表
- * @param {object} params - 查询参数
- * @returns {Promise} 返回反馈列表
- */
-export async function getFeedbackList(params = {}) {
-  const { page = 1, limit = 20, minRating, maxRating } = params;
-  const queryParams = new URLSearchParams({
-    page: String(page),
-    limit: String(limit),
-  });
-
-  if (minRating) queryParams.append('minRating', String(minRating));
-  if (maxRating) queryParams.append('maxRating', String(maxRating));
-
-  return request(`/feedback/list?${queryParams}`);
 }
 
 /**
@@ -340,6 +322,93 @@ export async function searchDocuments(query, topK = 5, category) {
   });
 }
 
+// ==================== 猜你想问接口 ====================
+
+/**
+ * 获取猜你想问列表
+ * @param {object} params - 查询参数
+ * @returns {Promise} 返回猜你想问列表
+ */
+export async function getSuggestions(params = {}) {
+  const { category, limit = 10, random = false } = params;
+  const queryParams = new URLSearchParams({
+    limit: String(limit),
+  });
+
+  if (category) queryParams.append('category', category);
+  if (random) queryParams.append('random', 'true');
+
+  return request(`/suggestions?${queryParams}`);
+}
+
+/**
+ * 记录猜你想问点击
+ * @param {number} id - 建议ID
+ * @returns {Promise} 返回记录结果
+ */
+export async function recordSuggestionClick(id) {
+  return request(`/suggestions/${id}/click`, {
+    method: 'POST',
+  });
+}
+
+/**
+ * 获取猜你想问详情
+ * @param {number} id - 建议ID
+ * @returns {Promise} 返回建议详情
+ */
+export async function getSuggestionDetail(id) {
+  return request(`/suggestions/${id}`);
+}
+
+/**
+ * 创建猜你想问（管理员）
+ * @param {object} data - 建议数据
+ * @returns {Promise} 返回创建结果
+ */
+export async function createSuggestion(data) {
+  return request('/suggestions', {
+    method: 'POST',
+    body: data,
+  });
+}
+
+/**
+ * 更新猜你想问（管理员）
+ * @param {number} id - 建议ID
+ * @param {object} data - 更新数据
+ * @returns {Promise} 返回更新结果
+ */
+export async function updateSuggestion(id, data) {
+  return request(`/suggestions/${id}`, {
+    method: 'PUT',
+    body: data,
+  });
+}
+
+/**
+ * 删除猜你想问（管理员）
+ * @param {number} id - 建议ID
+ * @returns {Promise} 返回删除结果
+ */
+export async function deleteSuggestion(id) {
+  return request(`/suggestions/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+/**
+ * 批量创建猜你想问（初始化）
+ * @param {Array} suggestions - 建议数组
+ * @returns {Promise} 返回创建结果
+ */
+export async function batchCreateSuggestions(suggestions) {
+  return request('/suggestions/batch', {
+    method: 'POST',
+    body: { suggestions },
+  });
+}
+
 // ==================== 健康检查接口 ====================
 
 /**
@@ -369,7 +438,6 @@ const api = {
   // 反馈
   submitFeedback,
   getFeedbackByMessage,
-  getFeedbackList,
   getFeedbackStats,
 
   // 文档
@@ -380,6 +448,15 @@ const api = {
   getDocumentStatus,
   deleteDocument,
   searchDocuments,
+
+  // 猜你想问
+  getSuggestions,
+  recordSuggestionClick,
+  getSuggestionDetail,
+  createSuggestion,
+  updateSuggestion,
+  deleteSuggestion,
+  batchCreateSuggestions,
 
   // 其他
   healthCheck,
