@@ -149,6 +149,73 @@ export class ZhipuLLMService {
   }
 
   /**
+   * 流式对话方法
+   * 智谱AI SSE格式：每行 data: {"choices":[{"delta":{"content":"xx"}}]}\n\n
+   * 结束标志：data: [DONE]
+   */
+  async *streamChat(
+    messages: ChatMessage[],
+    options?: {
+      temperature?: number;
+      maxTokens?: number;
+    },
+  ): AsyncGenerator<string> {
+    if (!this.apiKey) {
+      throw new Error('智谱AI API Key未配置');
+    }
+
+    logger.info('发送流式请求到智谱AI', {
+      model: this.model,
+      messagesCount: messages.length,
+    });
+
+    const response = await axios.post(
+      config.zhipu.apiUrl,
+      {
+        model: this.model,
+        messages,
+        stream: true,
+        temperature: options?.temperature ?? this.temperature,
+        max_tokens: options?.maxTokens || 2000,
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        responseType: 'stream',
+      },
+    );
+
+    const stream = response.data;
+    let buffer = '';
+
+    for await (const chunk of stream) {
+      buffer += chunk.toString();
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith('data:')) continue;
+
+        const data = trimmed.slice(5).trim();
+        if (data === '[DONE]') return;
+
+        try {
+          const parsed = JSON.parse(data);
+          const content = parsed.choices?.[0]?.delta?.content;
+          if (content) {
+            yield content;
+          }
+        } catch {
+          // 跳过无法解析的行
+        }
+      }
+    }
+  }
+
+  /**
    * 更换模型
    */
   setModel(model: string): void {

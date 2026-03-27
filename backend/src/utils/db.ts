@@ -211,7 +211,7 @@ export interface SaveMessageParams {
 /**
  * 保存消息到数据库
  */
-export const saveMessage = (params: SaveMessageParams): void => {
+export const saveMessage = (params: SaveMessageParams): number => {
   const database = getSQLiteDB();
 
   // 确保会话存在
@@ -233,7 +233,8 @@ export const saveMessage = (params: SaveMessageParams): void => {
     INSERT INTO messages (session_id, role, content)
     VALUES (?, ?, ?)
   `);
-  msgStmt.run(params.sessionId, params.role, params.content);
+  const result = msgStmt.run(params.sessionId, params.role, params.content);
+  return Number(result.lastInsertRowid);
 };
 
 /**

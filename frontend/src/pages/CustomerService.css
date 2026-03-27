@@ -367,6 +367,19 @@
   }
 }
 
+/* 流式光标 */
+.streaming-cursor::after {
+  content: '▊';
+  animation: blink 1s step-end infinite;
+  color: var(--primary-color);
+  margin-left: 2px;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
 /* ==================== Feedback Buttons ==================== */
 .message-content {
   margin-bottom: var(--spacing-s);

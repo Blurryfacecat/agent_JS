@@ -153,6 +153,7 @@ export const processMessage = async (
   riderId: string,
   sessionId: string,
   userMessage: string,
+  location?: { latitude: number; longitude: number },
 ): Promise<string> => {
   try {
     // 加载会话历史
@@ -181,6 +182,7 @@ export const processMessage = async (
         toolSelection.toolName,
         riderId,
         userMessage,
+        location,
       );
       assistantReply = await generateReply(userMessage, toolResult);
     } else {
@@ -219,6 +221,7 @@ const invokeTool = async (
   toolName: string,
   riderId: string,
   userMessage: string,
+  location?: { latitude: number; longitude: number },
 ): Promise<string> => {
   const tool = riderTools.find((t) => t.name === toolName);
   if (!tool) {
@@ -244,6 +247,9 @@ const invokeTool = async (
       break;
     case "transfer_to_human":
       input = { reason: userMessage, priority: "medium" };
+      break;
+    case "query_weather":
+      input = { latitude: location?.latitude, longitude: location?.longitude };
       break;
   }
 
@@ -286,3 +292,95 @@ export const clearSessionHistory = (sessionId: string): void => {
   sessionHistories.delete(sessionId);
   logger.info("清除会话历史", { sessionId });
 };
+
+/**
+ * 流式处理用户消息（异步生成器）
+ * 每次 yield 一个文本片段，最后保存完整回复到数据库
+ */
+export async function* streamMessage(
+  riderId: string,
+  sessionId: string,
+  userMessage: string,
+  location?: { latitude: number; longitude: number },
+): AsyncGenerator<{ type: 'chunk'; content: string } | { type: 'done'; messageId: number } | { type: 'error'; message: string }> {
+  try {
+    // 加载会话历史
+    await loadSessionHistory(sessionId);
+
+    // 保存用户消息到数据库
+    saveMessage({
+      sessionId,
+      userId: riderId,
+      role: "user",
+      content: userMessage,
+    });
+
+    const history = getChatHistory(sessionId);
+
+    // 使用 LLM 智能选择工具（同步阶段）
+    const toolSelection = await selectTool(userMessage);
+
+    let fullReply = '';
+
+    if (toolSelection.toolName) {
+      // 调用工具（同步阶段）
+      logger.info("流式: 选择调用工具", { tool: toolSelection.toolName });
+      const toolResult = await invokeTool(
+        toolSelection.toolName,
+        riderId,
+        userMessage,
+        location,
+      );
+
+      // 基于工具结果生成流式回复
+      let toolData: any;
+      try {
+        toolData = typeof toolResult === 'string' ? JSON.parse(toolResult) : toolResult;
+      } catch {
+        toolData = { result: toolResult };
+      }
+
+      const summaryPrompt = `用户问题: ${userMessage}
+
+工具返回结果:
+${JSON.stringify(toolData, null, 2)}
+
+请根据以上信息，用友好、口语化的方式回复用户。如果是查询结果，请清晰列出关键信息。
+如果是操作成功，告知用户结果。
+如果是错误信息，给出解决建议。`;
+
+      const messages: any[] = [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: summaryPrompt }];
+      for await (const chunk of zhipuLLMService.streamChat(messages)) {
+        fullReply += chunk;
+        yield { type: 'chunk', content: chunk };
+      }
+    } else {
+      // 直接对话，带上历史上下文
+      const context = await buildChatContext(history);
+      const fullPrompt = context + `用户当前问题: ${userMessage}`;
+      const messages: any[] = [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: fullPrompt }];
+
+      for await (const chunk of zhipuLLMService.streamChat(messages)) {
+        fullReply += chunk;
+        yield { type: 'chunk', content: chunk };
+      }
+    }
+
+    // 保存完整助手回复到数据库
+    const messageId = saveMessage({
+      sessionId,
+      userId: riderId,
+      role: "assistant",
+      content: fullReply,
+    });
+
+    // 更新内存历史
+    await history.addUserMessage(userMessage);
+    await history.addAIMessage(fullReply);
+
+    yield { type: 'done', messageId };
+  } catch (error: any) {
+    logger.error("流式处理消息失败", { sessionId, riderId, error });
+    yield { type: 'error', message: error.message || '处理消息失败' };
+  }
+}

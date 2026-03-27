@@ -101,6 +101,94 @@ export async function sendChatMessage(riderId, message, sessionId) {
 }
 
 /**
+ * 流式发送聊天消息 (SSE)
+ * @param {string} riderId - 骑手ID
+ * @param {string} message - 消息内容
+ * @param {string} sessionId - 会话ID (可选)
+ * @param {object} location - 骑手位置 { latitude, longitude } (可选)
+ * @param {object} callbacks - 回调函数 { onSession, onMessage, onDone, onError }
+ */
+export async function sendChatMessageStream(riderId, message, sessionId, location, callbacks = {}) {
+  const { onSession, onMessage, onDone, onError } = callbacks;
+  const fullUrl = `${API_BASE_URL}/chat/stream`;
+
+  const headers = {
+    'Content-Type': 'application/json',
+  };
+  // 将骑手经纬度放入请求头
+  if (location?.latitude != null && location?.longitude != null) {
+    headers['X-Rider-Latitude'] = String(location.latitude);
+    headers['X-Rider-Longitude'] = String(location.longitude);
+  }
+
+  try {
+    const response = await fetch(fullUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ riderId, message, sessionId }),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || `请求失败: ${response.status}`);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const events = buffer.split('\n\n');
+      buffer = events.pop() || '';
+
+      for (const eventBlock of events) {
+        if (!eventBlock.trim()) continue;
+
+        let eventType = '';
+        let eventData = '';
+
+        for (const line of eventBlock.split('\n')) {
+          if (line.startsWith('event:')) {
+            eventType = line.slice(6).trim();
+          } else if (line.startsWith('data:')) {
+            eventData = line.slice(5).trim();
+          }
+        }
+
+        if (!eventType || !eventData) continue;
+
+        try {
+          const data = JSON.parse(eventData);
+
+          switch (eventType) {
+            case 'session':
+              onSession?.(data.sessionId);
+              break;
+            case 'message':
+              onMessage?.(data.content);
+              break;
+            case 'done':
+              onDone?.(data);
+              break;
+            case 'error':
+              onError?.(new Error(data.message || '未知错误'));
+              break;
+          }
+        } catch {
+          // 跳过无法解析的事件
+        }
+      }
+    }
+  } catch (error) {
+    onError?.(error);
+  }
+}
+
+/**
  * 获取会话历史
  * @param {string} sessionId - 会话ID
  * @returns {Promise} 返回会话历史消息
@@ -503,6 +591,7 @@ export async function healthCheck() {
 const api = {
   // 聊天
   sendChatMessage,
+  sendChatMessageStream,
   getSessionHistory,
 
   // 知识库

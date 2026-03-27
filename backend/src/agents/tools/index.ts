@@ -6,7 +6,9 @@
 
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
+import axios from 'axios';
 import logger from '@/utils/logger';
+import { searchDocuments } from '@/services/documentProcessor';
 
 // ============ 工具函数定义 ============
 
@@ -144,34 +146,138 @@ export const searchKnowledgeTool = new DynamicStructuredTool({
     category: z.string().optional().describe('分类筛选（可选）'),
   }),
   func: async ({ query, category }) => {
-    logger.info('工具调用: search_knowledge', { query, category });
+    logger.info('工具调用: search_knowledge [使用RAG向量搜索]', { query, category });
 
-    // TODO: 实际应该从数据库或向量库搜索
-    // 这里返回模拟数据
-    const mockKnowledge = [
-      {
-        title: '如何申诉罚单',
-        category: '罚单申诉',
-        content: '1. 进入"我的"->"罚单记录" 2. 选择要申诉的罚单 3. 点击"申诉"并填写理由 4. 提交等待审核',
-      },
-      {
-        title: '配送时间规则',
-        category: '配送规则',
-        content: '普通订单配送时间30分钟，恶劣天气可延长15分钟。如遇特殊情况请联系客服报备。',
-      },
-    ];
+    try {
+      // 使用向量搜索（RAG）
+      const results = await searchDocuments(query, 5, category);
 
-    return JSON.stringify({
-      query,
-      results: mockKnowledge.filter((k) =>
-        !category || k.category === category
-      ),
-    });
+      logger.info('向量搜索成功', { query, resultCount: results.length, hasResults: results.length > 0 });
+
+      // 格式化结果
+      const formattedResults = results.map((r) => ({
+        title: r.document?.title || '知识库条目',
+        category: r.document?.category || '其他',
+        content: r.content,
+        score: r.score,
+      }));
+
+      return JSON.stringify({
+        query,
+        results: formattedResults,
+        source: 'vector_search', // 标记数据来源
+      });
+    } catch (error) {
+      logger.error('向量搜索失败，降级到模拟数据', { query, category, error: (error as Error).message });
+
+      // 降级到模拟数据
+      const mockKnowledge = [
+        {
+          title: '如何申诉罚单',
+          category: '罚单申诉',
+          content: '1. 进入"我的"->"罚单记录" 2. 选择要申诉的罚单 3. 点击"申诉"并填写理由 4. 提交等待审核',
+        },
+        {
+          title: '配送时间规则',
+          category: '配送规则',
+          content: '普通订单配送时间30分钟，恶劣天气可延长15分钟。如遇特殊情况请联系客服报备。',
+        },
+      ];
+
+      return JSON.stringify({
+        query,
+        results: mockKnowledge.filter((k) =>
+          !category || k.category === category
+        ),
+        source: 'mock_data', // 标记数据来源
+      });
+    }
   },
 });
 
 /**
- * 5. 人工客服转接工具
+ * 5. 天气查询工具
+ * 查询骑手当前位置的天气信息，用于配送提醒
+ */
+export const queryWeatherTool = new DynamicStructuredTool({
+  name: 'query_weather',
+  description: `查询骑手当前位置的天气信息。当用户询问以下问题时使用：
+  - "今天天气怎么样"
+  - "外面下雨吗"
+  - "天气如何"
+  - "现在多少度"
+  - "今天适合跑单吗"
+
+  根据骑手经纬度查询实时天气，返回温度、天气状况、风力等信息。`,
+  schema: z.object({
+    latitude: z.number().optional().describe('骑手纬度'),
+    longitude: z.number().optional().describe('骑手经度'),
+  }),
+  func: async ({ latitude, longitude }) => {
+    logger.info('工具调用: query_weather', { latitude, longitude });
+
+    // 使用 wttr.in 免费天气API（无需API Key）
+    let locationParam = '';
+    if (latitude != null && longitude != null) {
+      locationParam = `${latitude},${longitude}`;
+    } else {
+      locationParam = 'Beijing'; // 默认使用北京
+    }
+
+    try {
+      const response = await axios.get(`https://wttr.in/${locationParam}`, {
+        params: {
+          format: 'j1', // JSON格式
+        },
+        timeout: 5000,
+      });
+
+      const data = response.data;
+      const current = data.current_condition?.[0] || {};
+      const weatherDesc = current.weatherDesc?.[0]?.value || '未知';
+      const temp = current.temp_C;
+      const feelsLike = current.FeelsLikeC;
+      const humidity = current.humidity;
+      const windSpeed = current.windspeedKmph;
+      const windDir = current.winddir16Point;
+      const visibility = current.visibility;
+      const uvIndex = current.uvIndex;
+      const area = data.nearest_area?.[0] || {};
+      const cityName = area.areaName?.[0]?.value || '';
+
+      return JSON.stringify({
+        location: cityName || locationParam,
+        weather: weatherDesc,
+        temperature: `${temp}°C`,
+        feelsLike: `${feelsLike}°C`,
+        humidity: `${humidity}%`,
+        wind: `${windDir} ${windSpeed}km/h`,
+        visibility: `${visibility}km`,
+        uvIndex,
+        queryTime: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      logger.error('天气查询失败', { error: error.message });
+
+      // 降级返回模拟数据
+      return JSON.stringify({
+        location: '未知位置',
+        weather: '晴',
+        temperature: '22°C',
+        feelsLike: '20°C',
+        humidity: '45%',
+        wind: '东南风 12km/h',
+        visibility: '10km',
+        uvIndex: 5,
+        queryTime: new Date().toISOString(),
+        source: 'mock_data',
+      });
+    }
+  },
+});
+
+/**
+ * 6. 人工客服转接工具
  * 转接到人工客服
  */
 export const transferToHumanTool = new DynamicStructuredTool({
@@ -207,6 +313,7 @@ export const riderTools = [
   queryIncomeTool,
   penaltyAppealTool,
   searchKnowledgeTool,
+  queryWeatherTool,
   transferToHumanTool,
 ];
 
@@ -217,7 +324,8 @@ export const toolsDescription = `
 2. query_income - 查询收入信息（今日/本周/本月收入）
 3. penalty_appeal - 查询罚单或提交申诉
 4. search_knowledge - 搜索知识库FAQ和帮助文档
-5. transfer_to_human - 转接到人工客服
+5. query_weather - 查询骑手当前位置的实时天气（温度、风力、天气状况等）
+6. transfer_to_human - 转接到人工客服
 
 使用工具时请注意：
 - 根据用户问题选择合适的工具

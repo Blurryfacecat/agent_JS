@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { sendChatMessage, getSuggestions, recordSuggestionClick, submitFeedback } from '../services/api';
+import { sendChatMessageStream, getSuggestions, recordSuggestionClick, submitFeedback } from '../services/api';
 import './CustomerService.css';
 
 // 默认骑手ID (实际应用中应从用户登录信息获取)
@@ -19,6 +19,7 @@ export default function CustomerService() {
   const messagesEndRef = useRef(null);
 
   const sessionId = useRef(`session_${Date.now()}`);
+  const riderLocation = useRef({ latitude: null, longitude: null });
 
   // 自动滚动到底部
   const scrollToBottom = () => {
@@ -28,6 +29,24 @@ export default function CustomerService() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // 获取骑手位置（经纬度）
+  useEffect(() => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          riderLocation.current = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          };
+        },
+        () => {
+          console.log('获取位置失败，天气查询将使用默认位置');
+        },
+        { enableHighAccuracy: false, timeout: 5000 },
+      );
+    }
+  }, []);
 
   // 加载猜你想问
   useEffect(() => {
@@ -55,7 +74,7 @@ export default function CustomerService() {
     loadSuggestions();
   }, []);
 
-  // 发送消息的核心逻辑
+  // 发送消息的核心逻辑（流式）
   const sendMessage = async (messageContent) => {
     if (!messageContent.trim() || isLoading) return;
 
@@ -73,38 +92,55 @@ export default function CustomerService() {
     setShowSuggestions(false);
     setIsLoading(true);
 
-    try {
-      const data = await sendChatMessage(DEFAULT_RIDER_ID, messageContent.trim(), sessionId.current);
+    // 创建一个空的 assistant 消息占位
+    const assistantMsgId = Date.now() + 1;
+    setMessages(prev => [...prev, {
+      id: assistantMsgId,
+      role: 'assistant',
+      content: '',
+      dbId: null,
+      streaming: true,
+    }]);
 
-      if (data.data) {
-        const assistantMessage = {
-          id: Date.now() + 1,
-          dbId: data.data.messageId, // 保存数据库消息ID用于反馈
-          role: 'assistant',
-          content: data.data.reply || data.data.response || '抱歉，我暂时无法理解您的问题。',
-        };
-        setMessages(prev => [...prev, assistantMessage]);
+    let fullContent = '';
 
-        // Assistant 消息到来时，显示反馈按钮
-        setFeedbackableMessageId(assistantMessage.id);
-
-        // 更新sessionId (如果后端返回了新的)
-        if (data.data.sessionId) {
-          sessionId.current = data.data.sessionId;
-        }
+    await sendChatMessageStream(
+      DEFAULT_RIDER_ID,
+      messageContent.trim(),
+      sessionId.current,
+      riderLocation.current,
+      {
+        onSession: (newSessionId) => {
+          sessionId.current = newSessionId;
+        },
+        onMessage: (content) => {
+          fullContent += content;
+          setMessages(prev => prev.map(msg =>
+            msg.id === assistantMsgId
+              ? { ...msg, content: fullContent }
+              : msg
+          ));
+        },
+        onDone: (data) => {
+          setMessages(prev => prev.map(msg =>
+            msg.id === assistantMsgId
+              ? { ...msg, dbId: data.messageId, streaming: false }
+              : msg
+          ));
+          setFeedbackableMessageId(assistantMsgId);
+          setIsLoading(false);
+        },
+        onError: (error) => {
+          console.error('流式消息错误:', error);
+          setMessages(prev => prev.map(msg =>
+            msg.id === assistantMsgId
+              ? { ...msg, content: fullContent || `抱歉，服务出现异常：${error.message}`, streaming: false }
+              : msg
+          ));
+          setIsLoading(false);
+        },
       }
-    } catch (error) {
-      console.error('发送消息失败:', error);
-      const errorMessage = {
-        id: Date.now() + 1,
-        role: 'assistant',
-        content: `抱歉，服务出现异常：${error.message}`,
-      };
-      setMessages(prev => [...prev, errorMessage]);
-      setFeedbackableMessageId(errorMessage.id);
-    } finally {
-      setIsLoading(false);
-    }
+    );
   };
 
   // 发送消息（从输入框）
@@ -288,7 +324,7 @@ export default function CustomerService() {
               <div className="message-content">{msg.content}</div>
 
               {/* 只有 assistant 消息且是当前可反馈的消息才显示反馈按钮 */}
-              {msg.role === 'assistant' && msg.id === feedbackableMessageId && msg.dbId && (
+              {msg.role === 'assistant' && msg.id === feedbackableMessageId && msg.dbId && !msg.streaming && (
                 <div className="feedback-buttons">
                   <button
                     className={`feedback-btn helpful ${feedbackState[msg.id] === 'helpful' ? 'active' : ''}`}
@@ -316,15 +352,9 @@ export default function CustomerService() {
           </div>
         ))}
 
-        {/* 加载中动画 */}
-        {isLoading && (
-          <div className="message-row assistant-row">
-            <div className="message-bubble assistant-bubble loading">
-              <span className="dot"></span>
-              <span className="dot"></span>
-              <span className="dot"></span>
-            </div>
-          </div>
+        {/* 流式光标指示器 */}
+        {isLoading && messages[messages.length - 1]?.streaming && (
+          <div className="streaming-cursor" />
         )}
 
         <div ref={messagesEndRef} />

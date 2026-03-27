@@ -1,10 +1,20 @@
 import { Router, Request, Response } from 'express';
 import { successResponse, errorResponse } from '@/utils/response';
 import logger from '@/utils/logger';
-import { processMessage } from '@/agents/riderAgent';
+import { processMessage, streamMessage } from '@/agents/riderAgent';
 import { getSessionMessages, saveMessage } from '@/utils/db';
 
 const router = Router();
+
+/** 从请求头提取骑手经纬度 */
+function parseLocationFromHeaders(req: Request) {
+  const lat = req.headers['x-rider-latitude'];
+  const lng = req.headers['x-rider-longitude'];
+  if (lat && lng) {
+    return { latitude: Number(lat), longitude: Number(lng) };
+  }
+  return undefined;
+}
 
 interface ChatRequest {
   riderId: string;
@@ -18,6 +28,7 @@ interface ChatRequest {
 router.post('/chat', async (req: Request, res: Response) => {
   try {
     const { riderId, message, sessionId }: ChatRequest = req.body;
+    const location = parseLocationFromHeaders(req);
 
     // 基础参数校验
     if (!riderId || !message) {
@@ -31,6 +42,7 @@ router.post('/chat', async (req: Request, res: Response) => {
       riderId,
       message,
       sessionId: currentSessionId,
+      location,
     });
 
     // 保存用户消息
@@ -44,7 +56,7 @@ router.post('/chat', async (req: Request, res: Response) => {
     // 使用 Agent 处理消息（包含工具调用、历史记录、数据库保存）
     let reply: string;
     try {
-      reply = await processMessage(riderId, currentSessionId, message);
+      reply = await processMessage(riderId, currentSessionId, message, location);
       logger.info('Agent 处理成功,回复长度:', reply.length);
     } catch (agentError: any) {
       logger.error('Agent 处理失败:', agentError.message);
@@ -83,6 +95,58 @@ router.post('/chat', async (req: Request, res: Response) => {
   } catch (error: any) {
     logger.error('对话接口错误:', error);
     errorResponse(res, '处理请求失败', 500, 500);
+  }
+});
+
+/**
+ * 流式对话接口 (SSE)
+ */
+router.post('/chat/stream', async (req: Request, res: Response) => {
+  const { riderId, message, sessionId }: ChatRequest = req.body;
+  const location = parseLocationFromHeaders(req);
+
+  if (!riderId || !message) {
+    return errorResponse(res, '缺少必要参数: riderId或message', 400, 400);
+  }
+
+  const currentSessionId = sessionId || `session_${Date.now()}_${riderId}`;
+
+  logger.info(`收到流式对话请求`, {
+    riderId,
+    message,
+    sessionId: currentSessionId,
+    location,
+  });
+
+  // 设置 SSE headers
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+
+  // 发送 session 事件
+  res.write(`event: session\ndata: ${JSON.stringify({ sessionId: currentSessionId })}\n\n`);
+
+  try {
+    const generator = streamMessage(riderId, currentSessionId, message, location);
+
+    for await (const event of generator) {
+      if (event.type === 'chunk') {
+        res.write(`event: message\ndata: ${JSON.stringify({ content: event.content })}\n\n`);
+      } else if (event.type === 'done') {
+        res.write(`event: done\ndata: ${JSON.stringify({ messageId: event.messageId })}\n\n`);
+        logger.info('流式对话完成', { messageId: event.messageId });
+      } else if (event.type === 'error') {
+        res.write(`event: error\ndata: ${JSON.stringify({ message: event.message })}\n\n`);
+      }
+    }
+
+    res.end();
+  } catch (error: any) {
+    logger.error('流式对话接口错误:', error);
+    res.write(`event: error\ndata: ${JSON.stringify({ message: '服务异常' })}\n\n`);
+    res.end();
   }
 });
 
