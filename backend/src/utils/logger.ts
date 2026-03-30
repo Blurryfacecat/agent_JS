@@ -26,31 +26,29 @@ const transports: winston.transport[] = [
   }),
 ];
 
-// 生产环境添加文件日志
-if (config.nodeEnv === 'production') {
-  const logDir = config.log.dir;
+// 所有环境都写入文件日志
+const logDir = config.log.dir;
 
-  // 错误日志
-  transports.push(
-    new DailyRotateFile({
-      filename: path.join(logDir, 'error-%DATE%.log'),
-      datePattern: 'YYYY-MM-DD',
-      level: 'error',
-      maxSize: '20m',
-      maxFiles: '30d',
-    })
-  );
+// 错误日志
+transports.push(
+  new DailyRotateFile({
+    filename: path.join(logDir, 'error-%DATE%.log'),
+    datePattern: 'YYYY-MM-DD',
+    level: 'error',
+    maxSize: '20m',
+    maxFiles: '30d',
+  })
+);
 
-  // 所有日志
-  transports.push(
-    new DailyRotateFile({
-      filename: path.join(logDir, 'combined-%DATE%.log'),
-      datePattern: 'YYYY-MM-DD',
-      maxSize: '20m',
-      maxFiles: '30d',
-    })
-  );
-}
+// 所有日志
+transports.push(
+  new DailyRotateFile({
+    filename: path.join(logDir, 'combined-%DATE%.log'),
+    datePattern: 'YYYY-MM-DD',
+    maxSize: '20m',
+    maxFiles: '30d',
+  })
+);
 
 // 创建日志实例
 const logger = winston.createLogger({
