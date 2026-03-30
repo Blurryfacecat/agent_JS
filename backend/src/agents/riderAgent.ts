@@ -63,8 +63,14 @@ const selectTool = async (
 可用工具：
 ${toolsInfo}
 
-如果用户问题不需要调用任何工具（比如普通问候、感谢、闲聊等），返回：NO_TOOL
-如果需要调用工具，返回：TOOL:工具名称
+选择规则：
+- 如果用户问"怎么算/什么规则/有什么规定/怎么处理/政策是什么"等知识类问题 → search_knowledge
+- 如果用户想查看自己的订单、配送状态 → query_order
+- 如果用户想查看自己的收入、提现金额 → query_income
+- 如果用户想查看自己的罚单、想申诉罚单 → penalty_appeal
+- 如果用户问天气、下雨、温度 → query_weather
+- 如果用户要转人工、投诉 → transfer_to_human
+- 如果是普通问候、感谢、闲聊 → NO_TOOL
 
 用户问题：${userMessage}
 

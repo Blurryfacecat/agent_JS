@@ -134,13 +134,16 @@ export const penaltyAppealTool = new DynamicStructuredTool({
  */
 export const searchKnowledgeTool = new DynamicStructuredTool({
   name: 'search_knowledge',
-  description: `搜索知识库中的FAQ和帮助文档。当用户询问以下问题时使用：
-  - "如何申诉"
-  - "配送规则是什么"
-  - "怎么联系客服"
-  - "账号被封了怎么办"
+  description: `搜索知识库中的FAQ、规则、政策和帮助文档。当用户询问平台规则、政策、流程指南等知识类问题时使用：
+  - 配送相关规则（配送时间、超时判定、恶劣天气规则、高峰时段规则等）
+  - 罚款与申诉流程（罚款标准、申诉步骤、审核时效、申诉结果等）
+  - 收入与结算规则（配送费计算、提现规则、奖励机制等）
+  - 骑手等级与权益（等级划分、等级权益等）
+  - 安全规范（骑行安全、食品安全、异常上报等）
+  - 账号相关问题（注册、保护期、等级体系等）
+  - 任何关于"怎么算"、"什么规则"、"有什么规定"、"怎么处理"的问题
 
-  从知识库中搜索相关文档和常见问题解答。`,
+  从知识库向量搜索相关文档，返回最匹配的内容。`,
   schema: z.object({
     query: z.string().describe('搜索关键词或问题'),
     category: z.string().optional().describe('分类筛选（可选）'),
@@ -323,12 +326,12 @@ export const toolsDescription = `
 1. query_order - 查询订单信息（订单状态、数量等）
 2. query_income - 查询收入信息（今日/本周/本月收入）
 3. penalty_appeal - 查询罚单或提交申诉
-4. search_knowledge - 搜索知识库FAQ和帮助文档
+4. search_knowledge - 搜索知识库中的规则、政策、FAQ和帮助文档（配送规则、罚款标准、申诉流程、收入结算、等级权益、安全规范等）
 5. query_weather - 查询骑手当前位置的实时天气（温度、风力、天气状况等）
 6. transfer_to_human - 转接到人工客服
 
 使用工具时请注意：
-- 根据用户问题选择合适的工具
+- 涉及平台规则、政策、流程的问题，优先使用 search_knowledge 从知识库获取准确信息
 - 工具返回的是JSON格式数据，请转换为友好的语言回复用户
 - 如果工具无法解决问题，建议转人工客服
 `;
